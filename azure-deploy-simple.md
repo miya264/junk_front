@@ -7,6 +7,7 @@ Azure App Serviceの設定で以下の環境変数を追加してください：
 
 ```
 NODE_ENV=production
+PORT=3000
 NEXT_PUBLIC_API_ENDPOINT=https://your-backend-url.azurewebsites.net
 ```
 
@@ -32,6 +33,13 @@ Azure App Serviceの設定でNode.js 20.xを選択してください。
 - **オペレーティングシステム**: Linux
 - **地域**: お好みの地域
 
+### 6. 起動スクリプト
+Azure App Serviceの設定で以下の起動スクリプトを設定してください：
+
+```
+bash startup.sh
+```
+
 ## デプロイ手順
 
 1. Azure App Serviceを作成
@@ -50,4 +58,9 @@ Azure App Serviceの設定でNode.js 20.xを選択してください。
 ### ポート3000での応答なしの場合
 1. アプリケーションが正常に起動しているか確認
 2. ログを確認してエラーの詳細を確認
-3. 環境変数が正しく設定されているか確認 
+3. 環境変数が正しく設定されているか確認
+
+### server.jsが見つからないエラーの場合
+1. `startup.sh`スクリプトが正しく実行されているか確認
+2. `package.json`のstart scriptが正しく設定されているか確認
+3. 環境変数`PORT`が正しく設定されているか確認 
