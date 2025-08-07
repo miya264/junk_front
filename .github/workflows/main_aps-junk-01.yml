@@ -29,21 +29,19 @@ jobs:
           npm install
           npm run build
 
-      - name: Prepare and zip for deployment
+      - name: Create deployment package
         run: |
-          # デプロイ用の作業ディレクトリを作成
+          # `standalone` ディレクトリの内容をデプロイ用の作業ディレクトリにコピー
           mkdir -p deploy
-          
-          # `standalone` ビルドの成果物（サーバー、node_modulesなど）をコピー
           cp -r ./.next/standalone/. ./deploy/
           
-          # `static` アセットもコピー。`standalone`モードではここにも必要なファイルがある
-          cp -r ./.next/static ./deploy/.next/
-          
-          # ルートの `public` ディレクトリも必要
+          # `public` ディレクトリもコピー
           if [ -d "./public" ]; then
             cp -r ./public ./deploy/
           fi
+          
+          # `package.json` はなくてもよいが、念のためコピー
+          cp package.json ./deploy/
           
           # 準備ができた `deploy` ディレクトリの中身を圧縮
           cd deploy
@@ -70,7 +68,6 @@ jobs:
       - name: Unzip artifact
         run: |
           unzip -o release.zip -d .
-          # unzip すると、`release.zip`の中身がカレントディレクトリに展開される
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
