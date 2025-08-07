@@ -32,7 +32,7 @@ jobs:
       - name: Zip standalone build for deployment
         run: |
           # `standalone` ディレクトリ全体を圧縮する
-          zip -r release.zip ./.next/standalone
+          zip -r release.zip ./.next/standalone/
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -54,7 +54,7 @@ jobs:
 
       - name: Unzip artifact
         run: |
-          # `release.zip` を解凍すると、`./.next/standalone` というディレクトリが作成される
+          # `release.zip` を解凍すると、`./.next/standalone` ディレクトリが作成される
           unzip -o release.zip -d .
 
       - name: 'Deploy to Azure Web App'
