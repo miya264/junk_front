@@ -31,7 +31,8 @@ jobs:
 
       - name: Zip standalone build for deployment
         run: |
-          # `standalone` ディレクトリ全体を圧縮する
+          # .next/static を .next/standalone/.next/static にコピー
+          cp -r .next/static .next/standalone/.next/static
           zip -r release.zip ./.next/standalone/
 
       - name: Upload artifact for deployment job
