@@ -64,4 +64,4 @@ jobs:
         app-name: 'aps-junk-01'
         slot-name: 'Production'
         package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8903329C1AAE4120A1D6B4AB2C5031D8 }}
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8903329C1AAE4120A1D6B4AB2C5031D8 }}
