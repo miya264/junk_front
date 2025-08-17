@@ -1,7 +1,2 @@
-'use client';
-
-import App from '../App';
-
-export default function Home() {
-  return <App />;
-}
+import LoginPage from './login/page';
+export default LoginPage;
