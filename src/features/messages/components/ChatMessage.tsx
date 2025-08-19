@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Bot } from 'lucide-react';
-import { Message } from '../types/Message';
+import { Message } from '@/types/Message';
 
 interface ChatMessageProps {
   message: Message;
