@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Message, ChatSession, ApiMessage } from '../types/Message';
-import { api, ApiError, SessionState, MessageRequest } from '../utils/api';
+import { Message, ChatSession, ApiMessage } from '@/types/Message';
+import { api, ApiError, SessionState, MessageRequest } from '@/utils/api';
 import type { FlowKey } from '@/types/flow';
 
 // セッション管理をローカルストレージに永続化

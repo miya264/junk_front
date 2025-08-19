@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ChatSidebar from './components/ChatSidebar';
 import { ChatMessage } from './components/ChatMessage';   // ★ named import
 import { ChatInput } from './components/ChatInput';       // ★ named import
-import { InitialView } from './components/InitialView';   // ★ named import
+import InitialView from './components/InitialView';   // ★ default import
 import ContentOrganizer from './components/ContentOrganizer';
 import { useChat } from '@/hooks/useChat';
 import type { FlowKey } from '@/types/flow';
