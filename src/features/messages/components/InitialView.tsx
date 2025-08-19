@@ -3,25 +3,29 @@
 import React, { useState } from "react";
 
 type Props = {
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, searchType?: 'fact' | 'network') => void;
   isLoading: boolean;
 };
 
 export function InitialView({ onSendMessage, isLoading }: Props) {
   const [text, setText] = useState("");
 
-  const send = (value?: string) => {
+  const send = (value?: string, searchType?: 'fact' | 'network') => {
     const payload = (value ?? text).trim();
     if (!payload || isLoading) return;
-    onSendMessage(payload);
+    onSendMessage(payload, searchType);
     setText("");
   };
 
-  // モード別送信（タグを付けて送る簡易実装）
+  // モード別送信
   const sendWithMode = (mode: "test" | "fact" | "network") => {
-    const tag =
-      mode === "test" ? "[送信]" : mode === "fact" ? "[ファクト検索]" : "[人脈検索]";
-    send(`${tag} ${text}`.trim());
+    if (mode === "test") {
+      send(text);
+    } else if (mode === "fact") {
+      send(text, "fact");
+    } else if (mode === "network") {
+      send(text, "network");
+    }
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Message, ChatSession, ApiMessage } from '../types/Message';
-import { api, ApiError } from '../utils/api';
+import { api, ApiError, SessionState, MessageRequest } from '../utils/api';
+import type { FlowKey } from '@/types/flow';
 
 // セッション管理をローカルストレージに永続化
 const STORAGE_KEY = 'chat_sessions';
@@ -10,6 +11,7 @@ export const useChat = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<SessionState | null>(null);
   
   const currentSession = sessions.find(s => s.id === currentSessionId);
   const messages = currentSession?.messages || [];
@@ -82,10 +84,10 @@ export const useChat = () => {
     content: apiMsg.content,
     role: apiMsg.type === 'ai' ? 'assistant' : 'user',
     timestamp: new Date(apiMsg.timestamp),
-    searchType: apiMsg.search_type as 'fact' | 'network' | undefined,
+    searchType: (apiMsg.search_type === 'fact' || apiMsg.search_type === 'network') ? apiMsg.search_type : undefined,
   });
 
-  const sendMessage = useCallback(async (content: string, searchType?: 'fact' | 'network') => {
+  const sendMessage = useCallback(async (content: string, searchType?: 'fact' | 'network', flowStep?: FlowKey, projectId?: string) => {
     let sessionId = currentSessionId;
     
     // 新しいセッションを作成（初回メッセージの場合）
@@ -98,7 +100,7 @@ export const useChat = () => {
       content,
       role: 'user',
       timestamp: new Date(),
-      searchType,
+      searchType: (searchType === 'fact' || searchType === 'network') ? searchType : undefined,
     };
 
     // ユーザーメッセージを追加（関数型更新を使用）
@@ -121,12 +123,46 @@ export const useChat = () => {
 
     try {
       // バックエンドにメッセージを送信
-      const response = await api.sendMessage({
+      const requestData: MessageRequest = {
         content,
-        search_type: searchType || 'normal',
-      });
+        search_type: (searchType ?? 'normal') as 'normal' | 'fact' | 'network',
+        flow_step: flowStep,
+        session_id: sessionId!,
+        project_id: projectId,
+      };
+      
+      let response;
+      let assistantMessage;
+      
+      // 検索タイプが指定されている場合はRAG/通常チャットAPIを優先
+      // （バックエンド側は search_type 優先で処理されるため flow_step 同送でも問題なし）
+      if (searchType === 'fact' || searchType === 'network') {
+        response = await api.sendMessage(requestData);
+        assistantMessage = convertApiMessageToMessage(response);
+      } else if (flowStep) {
+        // フローステップがある場合は柔軟なポリシーシステムを使用
+        const flexibleResponse = await api.sendFlexiblePolicyMessage(requestData);
 
-      const assistantMessage = convertApiMessageToMessage(response);
+        // セッション状態を更新
+        if (flexibleResponse.full_state) {
+          setSessionState({
+            session_id: flexibleResponse.session_id,
+            project_id: flexibleResponse.project_id,
+            ...flexibleResponse.full_state
+          });
+        }
+
+        assistantMessage = {
+          id: flexibleResponse.id,
+          content: flexibleResponse.content,
+          role: 'assistant' as const,
+          timestamp: new Date(flexibleResponse.timestamp),
+          searchType: undefined,
+        };
+      } else {
+        response = await api.sendMessage(requestData);
+        assistantMessage = convertApiMessageToMessage(response);
+      }
 
       // AIレスポンスを追加（関数型更新を使用）
       setSessions(prevSessions => {
@@ -195,5 +231,6 @@ export const useChat = () => {
     startNewChat,
     isLoading,
     error,
+    sessionState,
   };
 };

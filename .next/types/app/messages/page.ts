@@ -1,4 +1,4 @@
-// File: C:\Users\moeha\250813junk\junk_front-main\src\app\messages\page.tsx
+// File: C:\Next.js\JUNK\front2\src\app\messages\page.tsx
 import * as entry from '../../../../src/app/messages/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

@@ -69,7 +69,10 @@ export default function MessagesApp({
       {/* 中央：メッセージ本体 */}
       <div className="flex-1 flex flex-col min-w-0">
         {isInitialView ? (
-          <InitialView onSendMessage={sendMessage} isLoading={isLoading} />
+          <InitialView 
+            onSendMessage={(text, searchType) => sendMessage(text, searchType, selectedFlow, projectId)} 
+            isLoading={isLoading} 
+          />
         ) : (
           <>
             {/* メッセージ一覧 */}
@@ -101,13 +104,13 @@ export default function MessagesApp({
             {/* 入力欄（送信時に進捗フラグを保存 → /project で濃色表示に使用） */}
             <ChatInput
               isLoading={isLoading}
-              onSendMessage={async (text: string) => { // ★ 型を付与
+              onSendMessage={async (text: string, searchType?: 'fact' | 'network') => {
                 if (projectId) {
                   try {
                     localStorage.setItem(`messages:${projectId}:${selectedFlow}`, '1');
                   } catch {}
                 }
-                await sendMessage(text);
+                await sendMessage(text, searchType, selectedFlow, projectId);
               }}
             />
           </>

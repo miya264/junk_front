@@ -3,6 +3,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8
 export interface MessageRequest {
   content: string;
   search_type?: 'normal' | 'fact' | 'network';
+  flow_step?: 'analysis' | 'objective' | 'concept' | 'plan' | 'proposal';
+  context?: any;
+  session_id?: string;
+  project_id?: string;
 }
 
 export interface MessageResponse {
@@ -18,6 +22,36 @@ export interface ChatSession {
   title: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FlexiblePolicyResponse {
+  id: string;
+  content: string;
+  step: string;
+  timestamp: string;
+  session_id: string;
+  project_id?: string;
+  full_state?: {
+    analysis_result?: string;
+    objective_result?: string;
+    concept_result?: string;
+    plan_result?: string;
+    proposal_result?: string;
+    last_updated_step?: string;
+    step_timestamps?: Record<string, string>;
+  };
+}
+
+export interface SessionState {
+  session_id: string;
+  project_id?: string;
+  analysis_result?: string;
+  objective_result?: string;
+  concept_result?: string;
+  plan_result?: string;
+  proposal_result?: string;
+  last_updated_step?: string;
+  step_timestamps?: Record<string, string>;
 }
 
 export class ApiError extends Error {
@@ -68,6 +102,17 @@ export const api = {
     return fetchApi<ChatSession>('/api/sessions', {
       method: 'POST',
     });
+  },
+
+  async sendFlexiblePolicyMessage(request: MessageRequest): Promise<FlexiblePolicyResponse> {
+    return fetchApi<FlexiblePolicyResponse>('/api/policy-flexible', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async getSessionState(sessionId: string): Promise<SessionState> {
+    return fetchApi<SessionState>(`/api/session-state/${sessionId}`);
   },
 
   async healthCheck(): Promise<{ message: string }> {
