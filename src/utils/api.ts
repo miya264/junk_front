@@ -64,24 +64,41 @@ export class ApiError extends Error {
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  console.log(`API Request: ${options?.method || 'GET'} ${url}`);
+  
   try {
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
+      mode: 'cors',
+      credentials: 'omit',
       ...options,
     });
 
+    console.log(`API Response: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unable to read error response');
+      console.error(`API Error Response: ${errorText}`);
+      throw new ApiError(response.status, `HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('API Success:', data);
+    return data;
   } catch (error) {
+    console.error('API Fetch Error:', error);
+    
     if (error instanceof ApiError) {
       throw error;
     }
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.');
+    }
+    
     throw new Error(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -116,6 +133,22 @@ export const api = {
   },
 
   async healthCheck(): Promise<{ message: string }> {
-    return fetchApi<{ message: string }>('/');
+    try {
+      const response = await fetchApi<{ message: string }>('/');
+      return response;
+    } catch (error) {
+      console.error('Health check failed:', error);
+      throw error;
+    }
+  },
+
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.healthCheck();
+      return true;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+    }
   },
 };

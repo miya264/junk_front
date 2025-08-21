@@ -3,6 +3,8 @@ import { Message, ChatSession, ApiMessage } from '@/types/Message';
 import { api, ApiError, SessionState, MessageRequest } from '@/utils/api';
 import type { FlowKey } from '@/types/flow';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8000';
+
 // セッション管理をローカルストレージに永続化
 const STORAGE_KEY = 'chat_sessions';
 
@@ -181,17 +183,35 @@ export const useChat = () => {
       
     } catch (err) {
       console.error('Failed to send message:', err);
+      console.error('Error details:', {
+        name: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        apiEndpoint: API_BASE_URL || process.env.NEXT_PUBLIC_API_ENDPOINT
+      });
       
       let errorMessage = 'メッセージの送信に失敗しました。';
       
       if (err instanceof ApiError) {
+        console.log(`API Error - Status: ${err.status}, Message: ${err.message}`);
         if (err.status === 500) {
-          errorMessage = 'サーバーエラーが発生しました。しばらく待ってから再試行してください。';
-        } else if (err.status === 0 || err.message.includes('Network error')) {
-          errorMessage = 'バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。';
+          errorMessage = `サーバーエラーが発生しました。(Status: ${err.status}) しばらく待ってから再試行してください。`;
+        } else if (err.status === 404) {
+          errorMessage = `APIエンドポイントが見つかりません。(Status: ${err.status}) サーバー設定を確認してください。`;
+        } else if (err.status === 0) {
+          errorMessage = `ネットワーク接続エラーです。CORS設定またはサーバーの起動状況を確認してください。`;
+        } else {
+          errorMessage = `API エラー (Status: ${err.status}): ${err.message}`;
         }
-      } else if (err instanceof Error && err.message.includes('Network error')) {
-        errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+      } else if (err instanceof Error) {
+        console.log(`Generic Error: ${err.message}`);
+        if (err.message.includes('Failed to fetch') || err.message.includes('Network error')) {
+          errorMessage = `ネットワークエラーが発生しました。API URL: ${API_BASE_URL || process.env.NEXT_PUBLIC_API_ENDPOINT}への接続を確認してください。`;
+        } else if (err.message.includes('CORS')) {
+          errorMessage = 'CORS エラーが発生しました。サーバーのCORS設定を確認してください。';
+        } else {
+          errorMessage = `エラーが発生しました: ${err.message}`;
+        }
       }
       
       setError(errorMessage);

@@ -10,6 +10,7 @@ import { ChatMessage } from './components/ChatMessage';   // ★ named import
 import { ChatInput } from './components/ChatInput';       // ★ named import
 import InitialView from './components/InitialView';   // ★ default import
 import ContentOrganizer from './components/ContentOrganizer';
+import { ConnectionTest } from '@/components/ConnectionTest';
 import { useChat } from '@/hooks/useChat';
 import type { FlowKey } from '@/types/flow';
 
