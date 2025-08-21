@@ -125,7 +125,7 @@ export const useChat = () => {
       // バックエンドにメッセージを送信
       const requestData: MessageRequest = {
         content,
-        search_type: (searchType ?? 'normal') as 'normal' | 'fact' | 'network',
+        search_type: searchType,
         flow_step: flowStep,
         session_id: sessionId!,
         project_id: projectId,
