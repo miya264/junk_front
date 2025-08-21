@@ -1,4 +1,20 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8000';
+// 環境変数の読み込みを確実にする
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // クライアントサイドでの確認
+    console.log('Client-side env check:', process.env.NEXT_PUBLIC_API_ENDPOINT);
+  }
+  
+  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+  const defaultEndpoint = 'http://127.0.0.1:8000';
+  
+  console.log('Environment variable NEXT_PUBLIC_API_ENDPOINT:', endpoint);
+  console.log('Using API endpoint:', endpoint || defaultEndpoint);
+  
+  return endpoint || defaultEndpoint;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface MessageRequest {
   content: string;
