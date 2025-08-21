@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Home, ClipboardList, Target, Lightbulb, Settings2, FileText, ChevronDown } from 'lucide-react';
+import { ConnectionTest } from '@/components/ConnectionTest';
 import type { FlowKey } from '@/types/flow';
 import { useRouter } from 'next/navigation';
 
@@ -130,6 +131,11 @@ export default function ChatSidebar({
             )}
           </div>
         </details>
+      </div>
+
+      {/* 接続テスト */}
+      <div className="px-4 pb-4">
+        <ConnectionTest />
       </div>
     </aside>
   );
