@@ -2,7 +2,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8
 
 export interface MessageRequest {
   content: string;
-  search_type?: 'normal' | 'fact' | 'network';
+  search_type?: 'fact' | 'network';
   flow_step?: 'analysis' | 'objective' | 'concept' | 'plan' | 'proposal';
   context?: any;
   session_id?: string;

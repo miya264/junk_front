@@ -26,7 +26,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             : 'bg-white border border-gray-200 text-gray-800 rounded-bl-md'
         }`}>
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-          {message.searchType && message.searchType !== 'normal' && (
+          {message.searchType && (
             <div className="mt-2 text-xs opacity-75">
               {message.searchType === 'fact' ? '📊 ファクト検索' : '👥 人脈検索'}
             </div>

@@ -3,7 +3,7 @@ export interface Message {
   content: string;
   role: 'user' | 'assistant';
   timestamp: Date;
-  searchType?: 'fact' | 'network' | 'normal';
+  searchType?: 'fact' | 'network';
 }
 
 export interface ChatSession {
