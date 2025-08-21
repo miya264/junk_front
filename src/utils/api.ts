@@ -1,17 +1,36 @@
 // 環境変数の読み込みを確実にする
 const getApiBaseUrl = () => {
+  // まずビルド時の環境変数を試す
+  let endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+  
+  // クライアントサイドでの動的判定
   if (typeof window !== 'undefined') {
-    // クライアントサイドでの確認
-    console.log('Client-side env check:', process.env.NEXT_PUBLIC_API_ENDPOINT);
+    // 本番環境のURLパターンを検出（Vercel、Netlify、GitHub Pages等）
+    const isProd = window.location.hostname !== 'localhost' && 
+                   window.location.hostname !== '127.0.0.1' &&
+                   !window.location.hostname.includes('localhost');
+    
+    if (isProd && !endpoint) {
+      // 本番環境なのに環境変数がない場合、デフォルトの本番APIを使用
+      endpoint = 'https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net';
+      console.warn('Production environment detected but NEXT_PUBLIC_API_ENDPOINT not set. Using default production API.');
+    }
+    
+    console.log('Client-side env check:', {
+      hostname: window.location.hostname,
+      isProd,
+      envVariable: process.env.NEXT_PUBLIC_API_ENDPOINT,
+      resolvedEndpoint: endpoint
+    });
   }
   
-  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
   const defaultEndpoint = 'http://127.0.0.1:8000';
+  const finalEndpoint = endpoint || defaultEndpoint;
   
-  console.log('Environment variable NEXT_PUBLIC_API_ENDPOINT:', endpoint);
-  console.log('Using API endpoint:', endpoint || defaultEndpoint);
+  console.log('Environment variable NEXT_PUBLIC_API_ENDPOINT:', process.env.NEXT_PUBLIC_API_ENDPOINT);
+  console.log('Using API endpoint:', finalEndpoint);
   
-  return endpoint || defaultEndpoint;
+  return finalEndpoint;
 };
 
 const API_BASE_URL = getApiBaseUrl();
