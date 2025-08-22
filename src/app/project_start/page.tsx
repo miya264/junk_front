@@ -1,18 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-
-type MyProject = { id: string; title: string; updatedAt: string };
-
-const DUMMY_MY_PROJECTS: MyProject[] = [
-  { id: 'p-001', title: 'プロジェクト #1', updatedAt: '2024/08/10' },
-  { id: 'p-002', title: 'プロジェクト #2', updatedAt: '2024/07/22' },
-  { id: 'p-003', title: 'プロジェクト #3', updatedAt: '2024/05/03' },
-];
+import { useState, useEffect } from 'react';
+import { ApiService, type Project } from '@/services';
 
 export default function ProjectStart() {
   const [open, setOpen] = useState(false);
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // TODO: 実際のログインユーザーIDを取得
+  const currentUserId = 1; // 山田太郎のID
+
+  // 自分のプロジェクト一覧を取得
+  const loadMyProjects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const projects = await ApiService.project.getProjectsByCoworker(currentUserId);
+      setMyProjects(projects);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+      setError('プロジェクト一覧の取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ドロップダウンが開かれたときにデータを取得
+  useEffect(() => {
+    if (open && myProjects.length === 0) {
+      loadMyProjects();
+    }
+  }, [open]);
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -62,18 +83,52 @@ export default function ProjectStart() {
 
           {open && (
             <div className="mt-2 rounded-xl border border-gray-200 bg-white overflow-hidden">
-              {DUMMY_MY_PROJECTS.map((p, idx) => (
-                <Link
-                  key={p.id}
-                  href={`/project/}`}//のちに{`/project/${p.id}`}へ変更
-                  className={`flex items-center justify-between px-5 py-3 text-gray-700 hover:bg-gray-50 ${
-                    idx < DUMMY_MY_PROJECTS.length - 1 ? 'border-b border-gray-200/70' : ''
-                  }`}
-                >
-                  <span>{p.title}</span>
-                  <span className="text-xs text-gray-400">{p.updatedAt}</span>
-                </Link>
-              ))}
+              {loading && (
+                <div className="px-5 py-4 text-center text-gray-500">
+                  プロジェクト一覧を読み込み中...
+                </div>
+              )}
+              
+              {error && (
+                <div className="px-5 py-4 text-center text-red-600">
+                  {error}
+                </div>
+              )}
+              
+              {!loading && !error && myProjects.length === 0 && (
+                <div className="px-5 py-4 text-center text-gray-500">
+                  参加しているプロジェクトがありません
+                </div>
+              )}
+              
+              {!loading && !error && myProjects.length > 0 && (
+                <>
+                  {myProjects.map((project, idx) => {
+                    // 日付をフォーマット
+                    const updatedAt = new Date(project.updated_at).toLocaleDateString('ja-JP', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit'
+                    }).replace(/\//g, '/');
+                    
+                    return (
+                      <Link
+                        key={project.id}
+                        href={`/project?project_id=${project.id}`}
+                        className={`flex items-center justify-between px-5 py-3 text-gray-700 hover:bg-gray-50 ${
+                          idx < myProjects.length - 1 ? 'border-b border-gray-200/70' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="font-medium">{project.name}</div>
+                          <div className="text-xs text-gray-500">オーナー: {project.owner_name}</div>
+                        </div>
+                        <span className="text-xs text-gray-400">{updatedAt}</span>
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>

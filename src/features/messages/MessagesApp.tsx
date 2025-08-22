@@ -5,6 +5,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import ChatSidebar from './components/ChatSidebar';
 import { ChatMessage } from './components/ChatMessage';   // ★ named import
 import { ChatInput } from './components/ChatInput';       // ★ named import
@@ -22,6 +24,16 @@ export default function MessagesApp({
   projectId?: string;
   initialFlow?: FlowKey;
 }) {
+  // デバッグ用コンソールログ
+  useEffect(() => {
+    console.log('MessagesApp initialized with:', { projectId, initialFlow });
+    if (projectId) {
+      console.log('Project-specific chat mode enabled');
+    } else {
+      console.log('General chat mode (no project)');
+    }
+  }, [projectId, initialFlow]);
+
   // 既存チャットロジック
   const {
     sessions,
@@ -37,6 +49,26 @@ export default function MessagesApp({
   const [selectedFlow, setSelectedFlow] = useState<FlowKey>(initialFlow);
   // 右側の内容整理パネル
   const [organizerOpen, setOrganizerOpen] = useState(false);
+  
+  // プロジェクト情報を取得
+  const [project, setProject] = useState<any>(null);
+  
+  useEffect(() => {
+    const loadProjectInfo = async () => {
+      if (projectId) {
+        try {
+          const { ApiService } = await import('@/services');
+          const projectData = await ApiService.project.getProject(projectId);
+          setProject(projectData);
+          console.log('Project data loaded:', projectData.name);
+        } catch (error) {
+          console.error('Failed to load project data:', error);
+        }
+      }
+    };
+    
+    loadProjectInfo();
+  }, [projectId]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,6 +101,35 @@ export default function MessagesApp({
 
       {/* 中央：メッセージ本体 */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* プロジェクト情報ヘッダー */}
+        {project && (
+          <div className="bg-white border-b border-gray-200 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Link 
+                  href={`/project?project_id=${projectId}`}
+                  className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm">プロジェクトに戻る</span>
+                </Link>
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">{project.name}</h1>
+                  <p className="text-sm text-gray-500">
+                    {selectedFlow === 'analysis' && '現状分析・課題整理'}
+                    {selectedFlow === 'objective' && '目的整理'}
+                    {selectedFlow === 'concept' && 'コンセプト策定'}
+                    {selectedFlow === 'plan' && '施策案作成'}
+                    {selectedFlow === 'proposal' && '提案書作成'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-gray-400">
+                オーナー: {project.owner_name}
+              </div>
+            </div>
+          </div>
+        )}
         {isInitialView ? (
           <InitialView 
             onSendMessage={(text, searchType) => sendMessage(text, searchType, selectedFlow, projectId)} 

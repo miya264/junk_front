@@ -59,8 +59,8 @@ export default function ChatSidebar({
           onClick={() => {
             // 必要なら新規セッション開始などの処理
             onNewChat?.();
-            // /project へ画面遷移
-            router.push('/project');
+            // /project_start へ画面遷移
+            router.push('/project_start');
           }}
           className="w-full inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-slate-700 text-white hover:opacity-90 transition"
         >
