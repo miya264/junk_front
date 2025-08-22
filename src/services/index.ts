@@ -50,9 +50,4 @@ export class ApiService {
   
   // チャット関連
   static chat = ChatService;
-  
-  // ヘルスチェック
-  static async isHealthy(): Promise<boolean> {
-    return await testConnection();
   }
-}
