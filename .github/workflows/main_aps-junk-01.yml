@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,8 @@ jobs:
         run: |
           npm install
           npm run build
+        env:
+          NEXT_PUBLIC_API_ENDPOINT: ${{ secrets.NEXT_PUBLIC_API_ENDPOINT }} # ← この行を追加
 
       - name: Zip standalone build for deployment
         run: |
