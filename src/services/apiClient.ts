@@ -1,46 +1,12 @@
 /**
- * 中央集権的なAPI管理クライアント（置き換え版）
- * - NEXT_PUBLIC_API_ENDPOINT が未設定でも落とさない
- * - 本番では /api にフォールバック（リバプロ前提）
- * - 開発では http://127.0.0.1:8000 にフォールバック
- * - 二重スラッシュを防止
+ * 中央集権的なAPI管理クライアント
+ * すべて /api に投げ、Next の rewrites に任せる
  */
 
-// ==== ベースURL解決 ====
-let _RESOLVED_BASE: string | null = null;
+// もう “http://127.0.0.1:8000” などは使わず固定で /api
+export const API_BASE_URL = '/api';
 
-const resolveApiBaseUrl = (): string => {
-  if (_RESOLVED_BASE) return _RESOLVED_BASE;
-
-  // 1) 環境変数（ビルド時に埋め込まれる）
-  const env = process.env.NEXT_PUBLIC_API_ENDPOINT?.trim();
-  if (env && env.length > 0) {
-    _RESOLVED_BASE = env.replace(/\/+$/, ''); // 末尾スラッシュ除去
-    return _RESOLVED_BASE;
-  }
-
-  // 2) 本番ホストで未設定 → /api にフォールバック（AppService 等でリバプロ設定を想定）
-  if (typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.hostname)) {
-    console.warn('[apiClient] NEXT_PUBLIC_API_ENDPOINT missing; fallback to "/api"');
-    _RESOLVED_BASE = '/api';
-    return _RESOLVED_BASE;
-  }
-
-  // 3) 開発デフォルト
-  _RESOLVED_BASE = 'http://127.0.0.1:8000';
-  console.warn('[apiClient] Using default dev endpoint:', _RESOLVED_BASE);
-  return _RESOLVED_BASE;
-};
-
-export const API_BASE_URL = resolveApiBaseUrl();
-
-const makeUrl = (endpoint: string): string => {
-  const base = API_BASE_URL.replace(/\/+$/, '');
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${base}${path}`;
-};
-
-// ==== エラーハンドリング ====
+// エラーハンドリング
 export class ApiError extends Error {
   constructor(public status: number, message: string, public data?: any) {
     super(message);
@@ -48,60 +14,52 @@ export class ApiError extends Error {
   }
 }
 
-// ==== 共通リクエスト ====
+// 共通リクエスト
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = makeUrl(endpoint);
+  const url = `${API_BASE_URL}${endpoint}`;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {}),
-      },
-      mode: 'cors',
-      credentials: 'omit',
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      // ← rewrites 経由で同一オリジンになるので mode 指定は不要
       ...options,
     });
 
-    const contentType = res.headers.get('content-type') || '';
+    const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json')
-      ? await res.json()
-      : await res.text();
+      ? await response.json()
+      : await response.text();
 
-    if (!res.ok) {
-      const message =
-        (typeof data === 'object' && (data as any)?.detail) ? (data as any).detail :
-        (typeof data === 'string') ? data :
-        `HTTP ${res.status}: ${res.statusText}`;
-      throw new ApiError(res.status, message, data);
+    if (!response.ok) {
+      const msg =
+        typeof data === 'object' && data?.detail
+          ? data.detail
+          : typeof data === 'string'
+          ? data
+          : `HTTP ${response.status}`;
+      throw new ApiError(response.status, msg, data);
     }
 
     return data as T;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    if (err instanceof TypeError && String(err.message).includes('fetch')) {
-      throw new ApiError(0, 'ネットワークエラー: サーバーに接続できません');
-    }
-    throw new ApiError(0, `予期しないエラー: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
   }
 }
 
-// ==== ヘルパー ====
-export const get  = <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'GET' });
-export const post = <T>(endpoint: string, data: any) =>
-  apiRequest<T>(endpoint, { method: 'POST', body: JSON.stringify(data) });
-export const put  = <T>(endpoint: string, data: any) =>
-  apiRequest<T>(endpoint, { method: 'PUT',  body: JSON.stringify(data) });
-export const del  = <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'DELETE' });
+export const get = <T>(e: string) => apiRequest<T>(e, { method: 'GET' });
+export const post = <T>(e: string, body: any) =>
+  apiRequest<T>(e, { method: 'POST', body: JSON.stringify(body) });
+export const put = <T>(e: string, body: any) =>
+  apiRequest<T>(e, { method: 'PUT', body: JSON.stringify(body) });
+export const del = <T>(e: string) => apiRequest<T>(e, { method: 'DELETE' });
 
-// ==== ヘルスチェック ====
 export async function healthCheck(): Promise<{ message: string }> {
-  return await get<{ message: string }>('/');
+  return get<{ message: string }>('/');
 }
-
 export async function testConnection(): Promise<boolean> {
   try {
     await healthCheck();
