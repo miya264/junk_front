@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"features\\\\messages\\\\MessagesApp.tsx -> @/services\":{\"id\":\"features\\\\messages\\\\MessagesApp.tsx -> @/services\",\"files\":[]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"
