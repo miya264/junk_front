@@ -1,12 +1,15 @@
 /**
  * 中央集権的なAPI管理クライアント
- * すべて /api に投げ、Next の rewrites に任せる
+ * 本番=絶対URL直叩き / ローカル= /api 経由（Nextのrewrite）
  */
 
-// もう “http://127.0.0.1:8000” などは使わず固定で /api
-export const API_BASE_URL = '/api';
+// 末尾スラッシュ除去して使う
+const envEndpoint = (process.env.NEXT_PUBLIC_API_ENDPOINT || '').replace(/\/$/, '');
 
-// エラーハンドリング
+// 本番: ENV があればそのまま使う（クロスオリジンだが FastAPI(CORS *) で許可）
+// 開発: ENV が無ければ Next の rewrite を使う（同一オリジン /api）
+export const API_BASE_URL = envEndpoint || '/api';
+
 export class ApiError extends Error {
   constructor(public status: number, message: string, public data?: any) {
     super(message);
@@ -14,57 +17,38 @@ export class ApiError extends Error {
   }
 }
 
-// 共通リクエスト
-export async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      // ← rewrites 経由で同一オリジンになるので mode 指定は不要
-      ...options,
+      ...options, // ← mode/credentials は明示しない（余計な preflight を避ける）
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    const data = contentType.includes('application/json')
-      ? await response.json()
-      : await response.text();
+    const ct = res.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await res.json() : await res.text();
 
-    if (!response.ok) {
-      const msg =
-        typeof data === 'object' && data?.detail
-          ? data.detail
-          : typeof data === 'string'
+    if (!res.ok) {
+      const msg = typeof data === 'object' && (data as any)?.detail
+        ? (data as any).detail
+        : typeof data === 'string'
           ? data
-          : `HTTP ${response.status}`;
-      throw new ApiError(response.status, msg, data);
+          : `HTTP ${res.status}`;
+      throw new ApiError(res.status, msg, data);
     }
 
     return data as T;
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(0, err instanceof Error ? err.message : 'Network error');
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    throw new ApiError(0, e instanceof Error ? e.message : 'Network error');
   }
 }
 
-export const get = <T>(e: string) => apiRequest<T>(e, { method: 'GET' });
-export const post = <T>(e: string, body: any) =>
-  apiRequest<T>(e, { method: 'POST', body: JSON.stringify(body) });
-export const put = <T>(e: string, body: any) =>
-  apiRequest<T>(e, { method: 'PUT', body: JSON.stringify(body) });
-export const del = <T>(e: string) => apiRequest<T>(e, { method: 'DELETE' });
+export const get  = <T>(e: string) => apiRequest<T>(e, { method: 'GET' });
+export const post = <T>(e: string, body: any) => apiRequest<T>(e, { method: 'POST', body: JSON.stringify(body) });
+export const put  = <T>(e: string, body: any) => apiRequest<T>(e, { method: 'PUT',  body: JSON.stringify(body) });
+export const del  = <T>(e: string)         => apiRequest<T>(e, { method: 'DELETE' });
 
-export async function healthCheck(): Promise<{ message: string }> {
-  return get<{ message: string }>('/');
-}
-export async function testConnection(): Promise<boolean> {
-  try {
-    await healthCheck();
-    return true;
-  } catch {
-    return false;
-  }
-}
+export const healthCheck   = () => get<{ message: string }>('/');
+export const testConnection = async () => { try { await healthCheck(); return true; } catch { return false; } };
