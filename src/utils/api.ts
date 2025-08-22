@@ -11,9 +11,9 @@ const getApiBaseUrl = () => {
                    !window.location.hostname.includes('localhost');
     
     if (isProd && !endpoint) {
-      // 本番環境なのに環境変数がない場合、デフォルトの本番APIを使用
-      endpoint = 'https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net';
-      console.warn('Production environment detected but NEXT_PUBLIC_API_ENDPOINT not set. Using default production API.');
+      // 本番環境なのに環境変数がない場合はエラーとする
+      console.error('Production environment detected but NEXT_PUBLIC_API_ENDPOINT not set. Please configure the environment variable.');
+      throw new Error('API endpoint not configured for production environment. Please set NEXT_PUBLIC_API_ENDPOINT.');
     }
     
     console.log('Client-side env check:', {
@@ -87,6 +87,55 @@ export interface SessionState {
   proposal_result?: string;
   last_updated_step?: string;
   step_timestamps?: Record<string, string>;
+}
+
+export interface ProjectStepSection {
+  section_key: string;
+  content: string;
+  label?: string;
+}
+
+export interface ProjectStepSectionRequest {
+  project_id: string;
+  step_key: string;
+  sections: ProjectStepSection[];
+}
+
+export interface ProjectStepSectionResponse {
+  id: string;
+  project_id: string;
+  step_key: string;
+  section_key: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Coworker {
+  id: number;
+  name: string;
+  position?: string;
+  email: string;
+  department_name?: string;
+}
+
+export interface ProjectCreateRequest {
+  name: string;
+  description?: string;
+  owner_coworker_id: number;
+  member_ids: number[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+  owner_coworker_id: number;
+  owner_name: string;
+  members: Coworker[];
+  created_at: string;
+  updated_at: string;
 }
 
 export class ApiError extends Error {
@@ -185,5 +234,35 @@ export const api = {
       console.error('Connection test failed:', error);
       return false;
     }
+  },
+
+  async saveProjectStepSections(request: ProjectStepSectionRequest): Promise<ProjectStepSectionResponse[]> {
+    return fetchApi<ProjectStepSectionResponse[]>('/api/project-step-sections', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async getProjectStepSections(projectId: string, stepKey: string): Promise<ProjectStepSectionResponse[]> {
+    return fetchApi<ProjectStepSectionResponse[]>(`/api/project-step-sections/${projectId}/${stepKey}`);
+  },
+
+  async searchCoworkers(query: string = "", department: string = ""): Promise<Coworker[]> {
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    if (department) params.append('department', department);
+    
+    return fetchApi<Coworker[]>(`/api/coworkers/search?${params.toString()}`);
+  },
+
+  async createProject(request: ProjectCreateRequest): Promise<Project> {
+    return fetchApi<Project>('/api/projects', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async getProject(projectId: string): Promise<Project> {
+    return fetchApi<Project>(`/api/projects/${projectId}`);
   },
 };

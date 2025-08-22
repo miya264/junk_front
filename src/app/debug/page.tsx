@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/utils/api';
+import { ApiService } from '@/services';
 
 export default function DebugPage() {
   const [clientInfo, setClientInfo] = useState<any>(null);
@@ -27,8 +27,8 @@ export default function DebugPage() {
     setTestResult(null);
     
     try {
-      const response = await api.healthCheck();
-      setTestResult(`✅ Connection successful: ${JSON.stringify(response)}`);
+      const isHealthy = await ApiService.isHealthy();
+      setTestResult(`✅ Connection successful: ${isHealthy ? 'API is healthy' : 'API responded but unhealthy'}`);
     } catch (error) {
       setTestResult(`❌ Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -93,19 +93,24 @@ export default function DebugPage() {
           )}
         </div>
 
-        {/* Manual API Test */}
+        {/* Current API Endpoint */}
         <div className="bg-yellow-50 p-4 rounded-lg">
-          <h2 className="font-semibold mb-2">Manual Tests:</h2>
+          <h2 className="font-semibold mb-2">Current API Configuration:</h2>
           <div className="space-y-2 text-sm">
-            <p><strong>Local API:</strong> 
-              <a href="http://127.0.0.1:8000" target="_blank" rel="noopener noreferrer" 
-                 className="text-blue-600 underline ml-2">http://127.0.0.1:8000</a>
+            <p><strong>Active Endpoint:</strong> 
+              <span className="font-mono bg-white px-2 py-1 rounded border ml-2">
+                {process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8000'}
+              </span>
             </p>
-            <p><strong>Azure API:</strong> 
-              <a href="https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net" 
-                 target="_blank" rel="noopener noreferrer" 
-                 className="text-blue-600 underline ml-2">https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net</a>
-            </p>
+            {process.env.NEXT_PUBLIC_API_ENDPOINT && (
+              <p><strong>Test Link:</strong> 
+                <a href={process.env.NEXT_PUBLIC_API_ENDPOINT} 
+                   target="_blank" rel="noopener noreferrer" 
+                   className="text-blue-600 underline ml-2">
+                  Open API Root
+                </a>
+              </p>
+            )}
           </div>
         </div>
       </div>
