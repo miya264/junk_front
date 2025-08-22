@@ -1,30 +1,46 @@
 /**
- * 中央集権的なAPI管理クライアント
- * 各ページ・コンポーネント間でのAPI接続を統一的に管理
+ * 中央集権的なAPI管理クライアント（置き換え版）
+ * - NEXT_PUBLIC_API_ENDPOINT が未設定でも落とさない
+ * - 本番では /api にフォールバック（リバプロ前提）
+ * - 開発では http://127.0.0.1:8000 にフォールバック
+ * - 二重スラッシュを防止
  */
 
-// 環境変数からAPIベースURLを取得
-const getApiBaseUrl = (): string => {
-  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
-  
-  if (typeof window !== 'undefined') {
-    console.log('Current environment:', {
-      hostname: window.location.hostname,
-      envVariable: process.env.NEXT_PUBLIC_API_ENDPOINT,
-      resolvedEndpoint: endpoint
-    });
+// ==== ベースURL解決 ====
+let _RESOLVED_BASE: string | null = null;
+
+const resolveApiBaseUrl = (): string => {
+  if (_RESOLVED_BASE) return _RESOLVED_BASE;
+
+  // 1) 環境変数（ビルド時に埋め込まれる）
+  const env = process.env.NEXT_PUBLIC_API_ENDPOINT?.trim();
+  if (env && env.length > 0) {
+    _RESOLVED_BASE = env.replace(/\/+$/, ''); // 末尾スラッシュ除去
+    return _RESOLVED_BASE;
   }
-  
-  const defaultEndpoint = 'http://127.0.0.1:8000';
-  const finalEndpoint = endpoint || defaultEndpoint;
-  
-  console.log('Using API endpoint:', finalEndpoint);
-  return finalEndpoint;
+
+  // 2) 本番ホストで未設定 → /api にフォールバック（AppService 等でリバプロ設定を想定）
+  if (typeof window !== 'undefined' && !/localhost|127\.0\.0\.1/.test(window.location.hostname)) {
+    console.warn('[apiClient] NEXT_PUBLIC_API_ENDPOINT missing; fallback to "/api"');
+    _RESOLVED_BASE = '/api';
+    return _RESOLVED_BASE;
+  }
+
+  // 3) 開発デフォルト
+  _RESOLVED_BASE = 'http://127.0.0.1:8000';
+  console.warn('[apiClient] Using default dev endpoint:', _RESOLVED_BASE);
+  return _RESOLVED_BASE;
 };
 
-export const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 
-// エラーハンドリングクラス
+const makeUrl = (endpoint: string): string => {
+  const base = API_BASE_URL.replace(/\/+$/, '');
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${base}${path}`;
+};
+
+// ==== エラーハンドリング ====
 export class ApiError extends Error {
   constructor(public status: number, message: string, public data?: any) {
     super(message);
@@ -32,124 +48,65 @@ export class ApiError extends Error {
   }
 }
 
-// 共通リクエスト関数
+// ==== 共通リクエスト ====
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  console.log(`[API Request] ${options.method || 'GET'} ${url}`);
-  if (options.body) {
-    console.log('[API Request Body]:', options.body);
-  }
-  
+  const url = makeUrl(endpoint);
+
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers || {}),
       },
       mode: 'cors',
       credentials: 'omit',
       ...options,
     });
 
-    console.log(`[API Response] ${response.status} ${response.statusText}`);
+    const contentType = res.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await res.json()
+      : await res.text();
 
-    // レスポンスのコンテンツを取得
-    let responseData: any;
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      responseData = await response.json();
-    } else {
-      responseData = await response.text();
+    if (!res.ok) {
+      const message =
+        (typeof data === 'object' && (data as any)?.detail) ? (data as any).detail :
+        (typeof data === 'string') ? data :
+        `HTTP ${res.status}: ${res.statusText}`;
+      throw new ApiError(res.status, message, data);
     }
 
-    if (!response.ok) {
-      console.error('[API Error Response]:', responseData);
-      console.error('[API Error Context]:', {
-        url: url,
-        method: options.method || 'GET',
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        responseType: contentType
-      });
-      
-      // エラーメッセージを抽出
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      if (typeof responseData === 'object' && responseData.detail) {
-        errorMessage = responseData.detail;
-      } else if (typeof responseData === 'string') {
-        errorMessage = responseData;
-      }
-      
-      throw new ApiError(response.status, errorMessage, responseData);
-    }
-
-    console.log('[API Success Response]:', responseData);
-    return responseData;
-    
-  } catch (error) {
-    console.error('[API Request Failed]:', error);
-    
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    
-    if (error instanceof TypeError && error.message.includes('fetch')) {
+    return data as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof TypeError && String(err.message).includes('fetch')) {
       throw new ApiError(0, 'ネットワークエラー: サーバーに接続できません');
     }
-    
-    throw new ApiError(0, `予期しないエラー: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new ApiError(0, `予期しないエラー: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 }
 
-// GET リクエストのヘルパー
-export function get<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'GET' });
-}
+// ==== ヘルパー ====
+export const get  = <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'GET' });
+export const post = <T>(endpoint: string, data: any) =>
+  apiRequest<T>(endpoint, { method: 'POST', body: JSON.stringify(data) });
+export const put  = <T>(endpoint: string, data: any) =>
+  apiRequest<T>(endpoint, { method: 'PUT',  body: JSON.stringify(data) });
+export const del  = <T>(endpoint: string) => apiRequest<T>(endpoint, { method: 'DELETE' });
 
-// POST リクエストのヘルパー
-export function post<T>(endpoint: string, data: any): Promise<T> {
-  return apiRequest<T>(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-// PUT リクエストのヘルパー
-export function put<T>(endpoint: string, data: any): Promise<T> {
-  return apiRequest<T>(endpoint, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-// DELETE リクエストのヘルパー
-export function del<T>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'DELETE' });
-}
-
-// ヘルスチェック
+// ==== ヘルスチェック ====
 export async function healthCheck(): Promise<{ message: string }> {
-  try {
-    return await get<{ message: string }>('/');
-  } catch (error) {
-    console.error('Health check failed:', error);
-    throw error;
-  }
+  return await get<{ message: string }>('/');
 }
 
-// 接続テスト
 export async function testConnection(): Promise<boolean> {
   try {
     await healthCheck();
     return true;
-  } catch (error) {
-    console.error('Connection test failed:', error);
+  } catch {
     return false;
   }
 }
