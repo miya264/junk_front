@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -10,12 +10,12 @@ import ProjectCard from '@/components/ProjectCard';
 import { ApiService, type Project } from '@/services';
 
 type FlowKey =
-  | 'analysis'   // 現状分析・課題整理
-  | 'objective'  // 目的整理
-  | 'concept'    // コンセプト策定
-  | 'plan'       // 施策案作成
-  | 'proposal'   // 提案書作成
-  | 'empty';     // 空き枠（遷移なし）
+  | 'analysis'
+  | 'objective'
+  | 'concept'
+  | 'plan'
+  | 'proposal'
+  | 'empty';
 
 type CardDef = {
   flow: FlowKey;
@@ -33,15 +33,16 @@ const CARDS: CardDef[] = [
   { flow: 'empty',     title: '（空き枠）',         desc: 'あとで中身を足します' },
 ];
 
-export default function ProjectPage() {
+// ✅ 内側に分離：ここで useSearchParams を使う
+function ProjectPageInner() {
   const searchParams = useSearchParams();
-  const projectId = searchParams.get('project_id');
-  
+  // クエリ名の不一致に対応（どちらでもOKにする）
+  const projectId = searchParams.get('project_id') || searchParams.get('projectId');
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 各フローの進捗（localStorage判定）
   const [progress, setProgress] = useState<Record<FlowKey, boolean>>({
     analysis: false,
     objective: false,
@@ -51,7 +52,6 @@ export default function ProjectPage() {
     empty: false,
   });
 
-  // プロジェクト情報を取得
   useEffect(() => {
     const loadProject = async () => {
       if (!projectId) {
@@ -59,9 +59,7 @@ export default function ProjectPage() {
         setLoading(false);
         return;
       }
-
       try {
-        console.log('Loading project:', projectId);
         const projectData = await ApiService.project.getProject(projectId);
         setProject(projectData);
         setError(null);
@@ -72,14 +70,11 @@ export default function ProjectPage() {
         setLoading(false);
       }
     };
-
     loadProject();
   }, [projectId]);
 
-  // 各フローの進捗（localStorage判定）
   useEffect(() => {
     if (!projectId) return;
-
     const next: Record<FlowKey, boolean> = {
       analysis: false,
       objective: false,
@@ -97,9 +92,10 @@ export default function ProjectPage() {
         next[f] = false;
       }
     });
-    // 変更がある場合のみ更新
-    const changed = Object.keys(next).some((k) => (next as any)[k] !== (progress as any)[k]);
-    if (changed) setProgress(next);
+    setProgress((prev) => {
+      const changed = Object.keys(next).some((k) => (next as any)[k] !== (prev as any)[k]);
+      return changed ? next : prev;
+    });
   }, [projectId]);
 
   if (loading) {
@@ -122,10 +118,7 @@ export default function ProjectPage() {
           <Header />
           <div className="mt-10 text-center">
             <div className="text-red-600">{error || 'プロジェクトが見つかりません'}</div>
-            <Link 
-              href="/project_start" 
-              className="mt-4 inline-block text-blue-600 hover:underline"
-            >
+            <Link href="/project_start" className="mt-4 inline-block text-blue-600 hover:underline">
               プロジェクト一覧に戻る
             </Link>
           </div>
@@ -137,38 +130,32 @@ export default function ProjectPage() {
   return (
     <main className="min-h-screen bg-gray-100">
       <div className="max-w-6xl mx-auto px-4 py-10">
-        {/* ヘッダー / 上部アクション */}
         <Header />
         <TopActions />
 
-        {/* タイトル＆タグ */}
         <h1 className="mt-10 text-3xl font-semibold">{project.name}</h1>
         <ProjectTags members={project.members.map(m => m.name)} />
-        
-        {/* プロジェクト情報 */}
+
         <div className="mt-4 text-gray-600">
           <p>オーナー: {project.owner_name}</p>
           <p>メンバー数: {project.members.length}人</p>
           {project.description && <p className="mt-2">{project.description}</p>}
         </div>
 
-        {/* カード一覧 */}
         <section className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {CARDS.map((c) => {
             const hasProgress = progress[c.flow] && c.flow !== 'empty';
             const href = (c.flow === 'empty' || !projectId)
               ? undefined
               : `/messages?projectId=${encodeURIComponent(projectId)}&flow=${c.flow}`;
-            
+
             return (
               <div key={c.flow} className="relative">
-                {/* 進捗バッジ */}
                 {hasProgress && (
                   <span className="absolute z-10 top-3 right-3 inline-flex items-center gap-1 rounded-full bg-sky-500/90 text-white text-xs px-2 py-0.5">
                     進捗あり
                   </span>
                 )}
-                {/* カード本体（ProjectCard は href / hasProgress を受け取れる拡張版を使用） */}
                 <ProjectCard
                   title={c.title}
                   desc={c.desc}
@@ -182,5 +169,14 @@ export default function ProjectPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+// ✅ ここがページのエクスポート：Suspense で包む
+export default function ProjectPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading project…</div>}>
+      <ProjectPageInner />
+    </Suspense>
   );
 }
