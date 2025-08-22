@@ -3,17 +3,20 @@ const API = process.env.NEXT_PUBLIC_API_ENDPOINT; // 例: https://<your-fastapi>
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ← これが無いと .next/standalone は作られません
+  output: 'standalone',
+
+  // どちらかの運用にしてください:
+  // A) ここで /api を FastAPI に中継（rewrite）
   async rewrites() {
-    if (!API) return []; // 未設定なら何もしない（②の方法を使う場合）
+    if (!API) return []; // 環境変数未設定なら rewrite はしない
     const dest = API.replace(/\/$/, '');
     return [
-      {
-        source: '/api/:path*',
-        destination: `${dest}/:path*`, // /api/... -> FastAPI へ
-      },
+      { source: '/api/:path*', destination: `${dest}/:path*` },
     ];
   },
-  images: { unoptimized: true }, // 画像最適化を使わない場合
+
+  images: { unoptimized: true },
 };
 
 module.exports = nextConfig;
