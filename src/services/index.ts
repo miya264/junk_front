@@ -3,6 +3,8 @@
  * 各APIサービスを統合してエクスポート
  */
 
+import { testConnection, healthCheck, API_BASE_URL } from './apiClient';
+
 // API クライアント
 export { 
   apiRequest, 
@@ -50,4 +52,9 @@ export class ApiService {
   
   // チャット関連
   static chat = ChatService;
+  
+  // ヘルスチェック
+  static async isHealthy(): Promise<boolean> {
+    return await testConnection();
   }
+}
