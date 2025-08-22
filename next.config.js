@@ -1,12 +1,19 @@
+// next.config.js
+const API = process.env.NEXT_PUBLIC_API_ENDPOINT; // 例: https://<your-fastapi>.azurewebsites.net
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    optimizePackageImports: ['lucide-react']
+  async rewrites() {
+    if (!API) return []; // 未設定なら何もしない（②の方法を使う場合）
+    const dest = API.replace(/\/$/, '');
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${dest}/:path*`, // /api/... -> FastAPI へ
+      },
+    ];
   },
-  output: 'standalone',
-  env: {
-    NEXT_PUBLIC_API_ENDPOINT: process.env.NEXT_PUBLIC_API_ENDPOINT,
-  }
-}
+  images: { unoptimized: true }, // 画像最適化を使わない場合
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
