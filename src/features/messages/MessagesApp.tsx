@@ -5,8 +5,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import ChatSidebar from './components/ChatSidebar';
 import { ChatMessage } from './components/ChatMessage';   // ★ named import
 import { ChatInput } from './components/ChatInput';       // ★ named import
@@ -97,6 +95,7 @@ export default function MessagesApp({
         selectedFlow={selectedFlow}                    // ★ アクティブ表示に使用
         onSelectFlow={(f) => setSelectedFlow(f)}       // ★ クリックで切替
         onToggleOrganizer={() => setOrganizerOpen(v => !v)} // ★ 右パネル開閉
+        projectId={projectId}
       />
 
       {/* 中央：メッセージ本体 */}
@@ -106,13 +105,6 @@ export default function MessagesApp({
           <div className="bg-white border-b border-gray-200 px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Link 
-                  href={`/project?project_id=${projectId}`}
-                  className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm">プロジェクトに戻る</span>
-                </Link>
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">{project.name}</h1>
                   <p className="text-sm text-gray-500">

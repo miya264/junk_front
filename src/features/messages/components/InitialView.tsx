@@ -5,9 +5,10 @@ import React, { useState } from "react";
 type Props = {
   onSendMessage: (text: string, searchType?: 'fact' | 'network') => void;
   isLoading: boolean;
+  logoSrc?: string;
 };
 
-export function InitialView({ onSendMessage, isLoading }: Props) {
+export function InitialView({ onSendMessage, isLoading, logoSrc = "/logo.png" }: Props) {
   const [text, setText] = useState("");
 
   const send = (value?: string, searchType?: 'fact' | 'network') => {
@@ -17,7 +18,6 @@ export function InitialView({ onSendMessage, isLoading }: Props) {
     setText("");
   };
 
-  // モード別送信
   const sendWithMode = (mode: "test" | "fact" | "network") => {
     if (mode === "test") {
       send(text);
@@ -31,13 +31,10 @@ export function InitialView({ onSendMessage, isLoading }: Props) {
   return (
     <div className="flex-1 overflow-auto">
       <div className="h-full max-w-4xl mx-auto px-4 py-16 flex flex-col items-center justify-center">
-        {/* ロゴ */}
-        {/* public/logo.png を配置してください（.svg でも可） */}
         <div className="flex items-center gap-2 mb-8">
-          <img src="/logo.png" alt="METIST" className="h-8" />
+          <img src={logoSrc} alt="METIST" className="h-8" />
           <span className="text-2xl font-semibold tracking-wide text-sky-700">METIST</span>
         </div>
-    
 
         {/* 見出し */}
         <h1 className="text-xl font-semibold text-gray-800 mb-6 text-center">
@@ -64,14 +61,6 @@ export function InitialView({ onSendMessage, isLoading }: Props) {
 
           {/* モードボタン */}
           <div className="flex gap-3 justify-center mt-6">
-            <button
-              onClick={() => sendWithMode("test")}
-              disabled={isLoading || !text.trim()}
-              className="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 hover:bg-indigo-50 disabled:opacity-50"
-              title="試験モードで送信"
-            >
-              ▶ 送信
-            </button>
             <button
               onClick={() => sendWithMode("fact")}
               disabled={isLoading || !text.trim()}

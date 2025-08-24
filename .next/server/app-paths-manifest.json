@@ -1,6 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/project_start/page": "app/project_start/page.js",
+  "/project/page": "app/project/page.js",
   "/messages/page": "app/messages/page.js",
-  "/project/page": "app/project/page.js"
+  "/project_start/page": "app/project_start/page.js",
+  "/project_start/search/page": "app/project_start/search/page.js",
+  "/project_start/new/page": "app/project_start/new/page.js"
 }

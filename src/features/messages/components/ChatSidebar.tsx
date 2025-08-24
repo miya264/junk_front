@@ -1,5 +1,3 @@
-//250813かんちゃん変更
-
 'use client';
 
 import React from 'react';
@@ -7,32 +5,35 @@ import { Home, ClipboardList, Target, Lightbulb, Settings2, FileText, ChevronDow
 import { ConnectionTest } from '@/components/ConnectionTest';
 import type { FlowKey } from '@/types/flow';
 import { useRouter } from 'next/navigation';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { NameAvatar } from '@/components/NameAvatar';
 
 type Props = {
-  // 既存 useChat() 連携
   sessions: any[];
   currentSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onNewChat: () => void;
 
-  // 追加：フロー連動
   selectedFlow: FlowKey;
   onSelectFlow: (key: FlowKey) => void;
 
-  // 追加：「内容を整理する」開閉
   onToggleOrganizer: () => void;
+  projectId?: string; // ★ 追加
 };
 
-export default function ChatSidebar({
-  sessions,
-  currentSessionId,
-  onSelectSession,
-  onNewChat,
-  selectedFlow,
-  onSelectFlow,
-  onToggleOrganizer,
-}: Props) {
-  const router = useRouter(); 
+export default function ChatSidebar(props: Props) {
+  const router = useRouter();
+  const { user } = useCurrentUser();
+  const {
+    sessions,
+    currentSessionId,
+    onSelectSession,
+    onNewChat,
+    selectedFlow,
+    onSelectFlow,
+    onToggleOrganizer,
+    projectId,
+  } = props;
 
   const items: { key: FlowKey; label: string; icon: React.ReactNode }[] = [
     { key: 'analysis',  label: '現状分析・課題整理', icon: <ClipboardList size={16} /> },
@@ -42,26 +43,33 @@ export default function ChatSidebar({
     { key: 'proposal',  label: '資料作成',           icon: <FileText size={16} /> },
   ];
 
+  const displayName = user?.name ?? 'ゲスト';
+  const displayDept = user?.dept ?? '（部署未設定）';
+
+  // ホームボタン押下時の遷移処理
+  const handleHomeClick = () => {
+    if (projectId && projectId.trim().length > 0) {
+      router.push(`/project?project_id=${encodeURIComponent(projectId)}`);
+    } else {
+      router.push('/project');
+    }
+  };
+
   return (
     <aside className="w-64 h-full bg-white border-r border-gray-200 flex flex-col">
       {/* ユーザー */}
       <div className="px-4 py-4 border-b border-gray-100 flex items-center gap-3">
-        <img src="/avatar.png" className="w-10 h-10 rounded-full object-cover" alt="user" />
+        <NameAvatar name={displayName} src={user?.imageUrl} size={40} />
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-gray-800 truncate">鈴木 理沙</div>
-          <div className="text-xs text-gray-500 truncate">自治体担当・政策推進</div>
+          <div className="text-sm font-semibold text-gray-800 truncate">{displayName}</div>
+          <div className="text-xs text-gray-500 truncate">{displayDept}</div>
         </div>
       </div>
 
-      {/* ホーム＝新規チャット */}
+      {/* ホーム＝新規チャット（編集中プロジェクトへ戻る） */}
       <div className="px-4 pt-4">
         <button
-          onClick={() => {
-            // 必要なら新規セッション開始などの処理
-            onNewChat?.();
-            // /project_start へ画面遷移
-            router.push('/project_start');
-          }}
+          onClick={handleHomeClick}
           className="w-full inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-slate-700 text-white hover:opacity-90 transition"
         >
           <Home size={16} />

@@ -28,7 +28,11 @@ function clearLock() {
   localStorage.removeItem(LIMIT_KEY);
 }
 
-export default function LoginForm() {
+type Props = {
+  logoSrc?: string;
+};
+
+export default function LoginForm({ logoSrc = '/logo.png' }: Props) {
   const router = useRouter();
   const [empId, setEmpId] = useState('');
   const [password, setPassword] = useState('');
@@ -57,21 +61,11 @@ export default function LoginForm() {
     setError(null);
 
     try {
-      // フロント側でも一旦ハッシュ化（送信前処理）
       const hashed = await bcrypt.hash(password, 10);
 
-      /**
-       * 本来は以下のようにHTTPSでサーバへ送信：
-       * await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ empId, password }) })
-       * → サーバ側で認証＆サーバ側でハッシュ照合＆JWT発行
-       */
-
-      // ------- モック処理（DB未構築のため） -------
-      // デモでは「empIdが5桁以上でpasswordが規則を満たせば成功」とする
       const ok = EMP_ID_RULE.test(empId) && PASS_RULE.test(password);
       if (!ok) throw new Error('認証に失敗しました');
 
-      // 疑似JWT（ダミー）。実運用はサーバ発行のJWTを保存
       const pseudoJwt = btoa(
         JSON.stringify({
           sub: empId,
@@ -80,22 +74,18 @@ export default function LoginForm() {
         }),
       );
 
-      // クッキーではなく sessionStorage に格納（デモ用）
       sessionStorage.setItem(
         'auth',
         JSON.stringify({
           token: pseudoJwt,
-          // 送る必要はないが、送信前にハッシュした値を保存しておく例（デモ）
           clientHashedPassword: hashed,
           expiresAt: Date.now() + 60 * 60 * 1000, // 1h
         }),
       );
       clearLock();
 
-      // 遷移
       router.push('/project_start');
     } catch (err: any) {
-      // 失敗回数カウント
       const info = getLockInfo();
       const next = (info.count || 0) + 1;
       if (next >= MAX_TRIES) {
@@ -116,6 +106,12 @@ export default function LoginForm() {
       autoComplete="off"
       className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm"
     >
+      {/* ロゴ */}
+      <div className="flex items-center gap-2 mb-6 justify-center">
+        <img src={logoSrc} alt="METIST" className="h-8" />
+        <span className="text-2xl font-semibold tracking-wide text-sky-700">METIST</span>
+      </div>
+
       {/* 職員番号 */}
       <label className="block text-sm font-medium text-gray-700 mb-1">職員番号</label>
       <input
