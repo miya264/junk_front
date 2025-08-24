@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/project_start/page": [
+    "/messages/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/project_start/page.js"
+      "static/chunks/app/messages/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -16,10 +16,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/project/page.js"
     ],
-    "/messages/page": [
+    "/project_start/new/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/messages/page.js"
+      "static/chunks/app/project_start/new/page.js"
+    ],
+    "/project_start/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/project_start/page.js"
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",

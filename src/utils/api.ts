@@ -66,6 +66,8 @@ export interface FlexiblePolicyResponse {
   timestamp: string;
   session_id: string;
   project_id?: string;
+  navigate_to?: string; // ステップ移動の場合にターゲットステップが設定される
+  type?: string;        // "navigate"の場合はステップ移動
   full_state?: {
     analysis_result?: string;
     objective_result?: string;

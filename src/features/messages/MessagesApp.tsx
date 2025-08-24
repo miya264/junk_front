@@ -43,7 +43,11 @@ export default function MessagesApp({
     selectSession,
     startNewChat,
     isLoading,
-  } = useChat();
+  } = useChat((newStep) => {
+    // チャット内でステップ移動が検出された場合の処理
+    setSelectedFlow(newStep);
+    console.log('Step changed via chat:', newStep);
+  });
 
   // 選択中フロー（/messages?flow=... から初期化）
   const [selectedFlow, setSelectedFlow] = useState<FlowKey>(initialFlow);

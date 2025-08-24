@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8
 // セッション管理をローカルストレージに永続化
 const STORAGE_KEY = 'chat_sessions';
 
-export const useChat = () => {
+export const useChat = (onStepChange?: (newStep: FlowKey) => void) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -152,6 +152,13 @@ export const useChat = () => {
             project_id: flexibleResponse.project_id,
             ...flexibleResponse.full_state
           });
+        }
+
+        // ステップ移動の処理
+        if (flexibleResponse.type === 'navigate' && flexibleResponse.navigate_to && onStepChange) {
+          const targetStep = flexibleResponse.navigate_to as FlowKey;
+          // ステップ変更のコールバックを実行
+          onStepChange(targetStep);
         }
 
         assistantMessage = {
