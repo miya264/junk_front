@@ -23,7 +23,8 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
   try {
     const res = await fetch(url, {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      ...options, // ← mode/credentials は明示しない（余計な preflight を避ける）
+      credentials: 'include', // Cookieを含める
+      ...options,
     });
 
     const ct = res.headers.get('content-type') || '';

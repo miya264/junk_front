@@ -5,6 +5,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X, Plus, User } from 'lucide-react';
 import Header from '@/components/Header';  
+import AuthGuard from '@/components/AuthGuard';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserId, getDepartmentName } from '@/utils/userUtils';
 import { ApiService, type Coworker, type ProjectCreateRequest } from '@/services';
 
 export default function NewProject() {
@@ -17,14 +20,16 @@ export default function NewProject() {
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser] = useState<Coworker>({ 
-    id: 1, 
-    name: '山田太郎', 
-    email: 'yamada@example.com', 
-    department_name: '企画部' 
-  }); // TODO: 実際のログインユーザー情報に置き換え
-  
+  const { user } = useAuth();
   const router = useRouter();
+
+  // ログインユーザーをCoworker型に変換
+  const currentUser: Coworker = {
+    id: getUserId(user),
+    name: user?.name || 'Unknown User',
+    email: user?.email || '',
+    department_name: getDepartmentName(user)
+  };
 
   // 検索実行
   const handleSearch = async () => {
@@ -101,7 +106,8 @@ export default function NewProject() {
   }, [searchQuery, departmentQuery]);
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <AuthGuard>
+      <main className="min-h-screen bg-gray-100">
       <div className="max-w-4xl mx-auto px-4 py-12">
         <Header />
 
@@ -253,5 +259,6 @@ export default function NewProject() {
         </div>
       </div>
     </main>
+    </AuthGuard>
   );
 }

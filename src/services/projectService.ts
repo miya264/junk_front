@@ -12,6 +12,12 @@ export interface Coworker {
   position?: string;
   email: string;
   department_name?: string;
+  // 追加フィールド（DBから取得）
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProjectCreateRequest {

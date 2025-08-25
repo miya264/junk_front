@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Search, Users } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (content: string, searchType?: 'fact' | 'network') => void;
@@ -44,15 +44,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
           
           <div className="flex gap-2">
             <button
-              onClick={() => handleSubmit()}
-              disabled={!input.trim() || isLoading}
-              className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 group"
-              title="送信"
-            >
-              <Send size={18} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-            </button>
-            
-            <button
               onClick={() => handleSubmit('fact')}
               disabled={!input.trim() || isLoading}
               className="p-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 group"
@@ -73,10 +64,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }
         </div>
         
         <div className="mt-3 flex gap-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded"></div>
-            <span>通常送信</span>
-          </div>
+          <div className="flex items-center gap-1"><span>Enter で通常送信</span></div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-gradient-to-br from-green-500 to-green-600 rounded"></div>
             <span>ファクト検索</span>

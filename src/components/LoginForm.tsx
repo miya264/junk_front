@@ -2,12 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import bcrypt from 'bcryptjs';
+import { useAuth } from '@/contexts/AuthContext';
 
 type LockInfo = { count: number; lockedUntil?: number };
 
-const EMP_ID_RULE = /^[0-9]{5,}$/; // 例：5桁以上の数字
-const PASS_RULE = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/; // 英数1文字以上含む8文字以上
+const EMAIL_RULE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // メールアドレス形式
+const PASS_RULE = /^.{3,}$/; // 3文字以上（テスト用に簡素化）
 
 // ローカル簡易レート制限（5回失敗で5分ロック）
 const LIMIT_KEY = 'login_lock_info';
@@ -30,7 +30,8 @@ function clearLock() {
 
 export default function LoginForm() {
   const router = useRouter();
-  const [empId, setEmpId] = useState('');
+  const { login, error: authError, isLoading: authLoading } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -41,13 +42,13 @@ export default function LoginForm() {
   const lockedRemaining = lock.lockedUntil && lock.lockedUntil > now ? lock.lockedUntil - now : 0;
   const locked = lockedRemaining > 0;
 
-  const empIdError = empId && !EMP_ID_RULE.test(empId) ? '職員番号は5桁以上の数字で入力してください' : '';
+  const emailError = email && !EMAIL_RULE.test(email) ? 'メールアドレスの形式が正しくありません' : '';
   const passError =
     password && !PASS_RULE.test(password)
-      ? '半角英数8文字以上（英字・数字を各1文字以上）'
+      ? '3文字以上入力してください'
       : '';
 
-  const canSubmit = !locked && EMP_ID_RULE.test(empId) && PASS_RULE.test(password) && !submitting;
+  const canSubmit = !locked && EMAIL_RULE.test(email) && PASS_RULE.test(password) && !submitting;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,44 +58,14 @@ export default function LoginForm() {
     setError(null);
 
     try {
-      // フロント側でも一旦ハッシュ化（送信前処理）
-      const hashed = await bcrypt.hash(password, 10);
-
-      /**
-       * 本来は以下のようにHTTPSでサーバへ送信：
-       * await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ empId, password }) })
-       * → サーバ側で認証＆サーバ側でハッシュ照合＆JWT発行
-       */
-
-      // ------- モック処理（DB未構築のため） -------
-      // デモでは「empIdが5桁以上でpasswordが規則を満たせば成功」とする
-      const ok = EMP_ID_RULE.test(empId) && PASS_RULE.test(password);
-      if (!ok) throw new Error('認証に失敗しました');
-
-      // 疑似JWT（ダミー）。実運用はサーバ発行のJWTを保存
-      const pseudoJwt = btoa(
-        JSON.stringify({
-          sub: empId,
-          iat: Date.now(),
-          rnd: crypto.getRandomValues(new Uint32Array(1))[0],
-        }),
-      );
-
-      // クッキーではなく sessionStorage に格納（デモ用）
-      sessionStorage.setItem(
-        'auth',
-        JSON.stringify({
-          token: pseudoJwt,
-          // 送る必要はないが、送信前にハッシュした値を保存しておく例（デモ）
-          clientHashedPassword: hashed,
-          expiresAt: Date.now() + 60 * 60 * 1000, // 1h
-        }),
-      );
+      // サーバーサイドでパスワード検証とJWT生成を実行
+      await login(email, password);
+      
       clearLock();
 
-      // 遷移
+      // ログイン成功後、project_startに遷移
       router.push('/project_start');
-    } catch (err: any) {
+    } catch (err) {
       // 失敗回数カウント
       const info = getLockInfo();
       const next = (info.count || 0) + 1;
@@ -116,22 +87,23 @@ export default function LoginForm() {
       autoComplete="off"
       className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm"
     >
-      {/* 職員番号 */}
-      <label className="block text-sm font-medium text-gray-700 mb-1">職員番号</label>
+      {/* メールアドレス */}
+      <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
       <input
-        inputMode="numeric"
+        type="email"
+        inputMode="email"
         autoCapitalize="off"
         autoCorrect="off"
-        name="empId"
-        placeholder="12345"
-        value={empId}
-        onChange={(e) => setEmpId(e.target.value.trim())}
+        name="email"
+        placeholder="example@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value.trim())}
         disabled={submitting || locked}
         className={`w-full rounded-lg border px-3 py-2 mb-2 outline-none ${
-          empIdError ? 'border-red-300 focus:border-red-400' : 'border-gray-300 focus:border-gray-400'
+          emailError ? 'border-red-300 focus:border-red-400' : 'border-gray-300 focus:border-gray-400'
         }`}
       />
-      {empIdError && <p className="text-xs text-red-500 mb-3">{empIdError}</p>}
+      {emailError && <p className="text-xs text-red-500 mb-3">{emailError}</p>}
 
       {/* パスワード */}
       <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
