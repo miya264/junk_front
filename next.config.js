@@ -1,10 +1,15 @@
-// next.config.js - 一時的に最小構成でテスト
+// next.config.js - 静的サイト生成に変更
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: 'export',
+  trailingSlash: true,
   
-  // キャッシュを無効化
+  images: { 
+    unoptimized: true 
+  },
+  
+  // 静的ファイルでもキャッシュを制御
   headers: async () => {
     return [
       {
@@ -15,8 +20,6 @@ const nextConfig = {
       },
     ];
   },
-
-  images: { unoptimized: true },
 };
 
 module.exports = nextConfig;
