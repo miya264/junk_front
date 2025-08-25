@@ -56,24 +56,48 @@ jobs:
           }
           EOF
           
-          # シンプルなNode.jsサーバーを作成
+          # API プロキシ付きNode.jsサーバーを作成
           cat > out/server.js <<'EOF'
           const express = require('express');
+          const { createProxyMiddleware } = require('http-proxy-middleware');
           const path = require('path');
           
           const app = express();
           const PORT = process.env.PORT || 3000;
+          const API_ENDPOINT = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net';
+          
+          // APIプロキシ設定（/api/* を実際のAPIエンドポイントにプロキシ）
+          app.use('/api', createProxyMiddleware({
+            target: API_ENDPOINT,
+            changeOrigin: true,
+            pathRewrite: {
+              '^/api': '' // /api を削除して実際のAPIに転送
+            },
+            onError: (err, req, res) => {
+              console.error('API Proxy Error:', err.message);
+              res.status(500).json({ error: 'API Proxy Error', details: err.message });
+            },
+            onProxyReq: (proxyReq, req, res) => {
+              console.log('API Proxy Request:', req.method, req.url, '→', API_ENDPOINT + req.url.replace('/api', ''));
+            }
+          }));
           
           // 静的ファイルを配信
           app.use(express.static('.'));
           
-          // SPAのフォールバック
+          // SPAのフォールバック（API以外のルート）
           app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, 'index.html'));
+            // APIリクエストでない場合のみSPAフォールバック
+            if (!req.path.startsWith('/api/')) {
+              res.sendFile(path.join(__dirname, 'index.html'));
+            } else {
+              res.status(404).json({ error: 'API endpoint not found' });
+            }
           });
           
           app.listen(PORT, () => {
-            console.log(`Static server running on port ${PORT}`);
+            console.log(`Server with API proxy running on port ${PORT}`);
+            console.log(`API requests /api/* will be proxied to: ${API_ENDPOINT}`);
           });
           EOF
           
@@ -86,10 +110,10 @@ jobs:
           # 静的ファイルを全てstandaloneにコピー
           cp -r out/* out/.next/standalone/ || true
           
-          # expressをstandaloneディレクトリでインストール
+          # expressとhttp-proxy-middlewareをstandaloneディレクトリでインストール
           cd out/.next/standalone
           npm init -y
-          npm install express@^4.18.0
+          npm install express@^4.18.0 http-proxy-middleware@^2.0.0
           cd ../../..
           
           # 現在の内容を確認
