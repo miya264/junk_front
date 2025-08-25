@@ -3,6 +3,6 @@
   "/page": "app/page.js",
   "/project_start/page": "app/project_start/page.js",
   "/project/page": "app/project/page.js",
-  "/messages/page": "app/messages/page.js",
-  "/login/page": "app/login/page.js"
+  "/login/page": "app/login/page.js",
+  "/messages/page": "app/messages/page.js"
 }
