@@ -7,7 +7,7 @@ const nextConfig = {
   output: 'standalone',
 
   async rewrites() {
-    // dev は必ずローカル FastAPI へ、prod は ENV があればそこへ
+    // dev はローカル FastAPI、prod は環境変数があればそこへ
     const target = isDev ? 'http://127.0.0.1:8000' : (PROD_API || null);
 
     if (!target) {
@@ -19,7 +19,8 @@ const nextConfig = {
     console.log('[rewrites] /api ->', dest);
 
     return [
-      { source: '/api/:path*', destination: `${dest}/:path*` },
+      // ★ 重要：/api を保持して転送する
+      { source: '/api/:path*', destination: `${dest}/api/:path*` },
     ];
   },
 

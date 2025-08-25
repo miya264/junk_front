@@ -1,21 +1,27 @@
 //元App.tsxです。移動して編集してます。250817
-//export default function MessagesApp({ projectId, initialFlow }) に変更し、/messages 側からのクエリを受け取れるようにしました。
-//送信時に messages:{projectId}:{flow} をセットし、/project のカード濃色表示と連動。
-// 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import ChatSidebar from './components/ChatSidebar';
-import { ChatMessage } from './components/ChatMessage';   // ★ named import
-import { ChatInput } from './components/ChatInput';       // ★ named import
-import InitialView from './components/InitialView';   // ★ default import
+import { ChatMessage } from './components/ChatMessage';
+import { ChatInput } from './components/ChatInput';
+import InitialView from './components/InitialView';
 import ContentOrganizer from './components/ContentOrganizer';
 import { ConnectionTest } from '@/components/ConnectionTest';
 import { useChat } from '@/hooks/useChat';
 import type { FlowKey } from '@/types/flow';
 
+import PeopleSearchReply from './components/PeopleSearchReply';
+import PeopleDetailsReply from './components/PeopleDetailsReply'; // 新しいコンポーネントをインポート
+
+import CandidateList, { type Candidate } from './components/CandidateList';
+
+// ---- 人物カードをメッセージIDに紐づけて保持 ----
+type PeopleCard = { id: string; query: string; items: Candidate[]; narrative?: string; isLoading: boolean };
+type PeopleCardMap = Record<string, PeopleCard>; // key = parent user message id
+// ------------------------------------------------
 
 export default function MessagesApp({
   projectId,
@@ -24,17 +30,10 @@ export default function MessagesApp({
   projectId?: string;
   initialFlow?: FlowKey;
 }) {
-  // デバッグ用コンソールログ
   useEffect(() => {
     console.log('MessagesApp initialized with:', { projectId, initialFlow });
-    if (projectId) {
-      console.log('Project-specific chat mode enabled');
-    } else {
-      console.log('General chat mode (no project)');
-    }
   }, [projectId, initialFlow]);
 
-  // 既存チャットロジック
   const {
     sessions,
     currentSessionId,
@@ -43,30 +42,29 @@ export default function MessagesApp({
     selectSession,
     startNewChat,
     isLoading,
+    setMessages
   } = useChat();
 
-  // 選択中フロー（/messages?flow=... から初期化）
   const [selectedFlow, setSelectedFlow] = useState<FlowKey>(initialFlow);
-  // 右側の内容整理パネル
   const [organizerOpen, setOrganizerOpen] = useState(false);
-  
-  // プロジェクト情報を取得
+
+  const [peopleCardsByMsg, setPeopleCardsByMsg] = useState<PeopleCardMap>({});
+  const pendingNetworkQueue = useRef<Array<{ query: string }>>([]); // network送信の仮置き
+  const networkLock = useRef(false);
+
   const [project, setProject] = useState<any>(null);
-  
+
   useEffect(() => {
     const loadProjectInfo = async () => {
-      if (projectId) {
-        try {
-          const { ApiService } = await import('@/services');
-          const projectData = await ApiService.project.getProject(projectId);
-          setProject(projectData);
-          console.log('Project data loaded:', projectData.name);
-        } catch (error) {
-          console.error('Failed to load project data:', error);
-        }
+      if (!projectId) return;
+      try {
+        const { ApiService } = await import('@/services');
+        const projectData = await ApiService.project.getProject(projectId);
+        setProject(projectData);
+      } catch (error) {
+        console.error('Failed to load project data:', error);
       }
     };
-    
     loadProjectInfo();
   }, [projectId]);
 
@@ -75,38 +73,156 @@ export default function MessagesApp({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, peopleCardsByMsg]);
 
-  // フロー変更の保存（将来はDB/APIに置き換え）
   useEffect(() => {
     if (projectId) {
       localStorage.setItem(`current:${projectId}`, JSON.stringify({ flow: selectedFlow }));
     }
   }, [projectId, selectedFlow]);
 
+  // セッション切替で人物カードはクリア（セッション内履歴）
+  useEffect(() => {
+    setPeopleCardsByMsg({});
+  }, [currentSessionId]);
+
+  // assistant の network 返信は表示しない（人物検索はカードだけを見せる）
+  const visibleMessages = useMemo(() => {
+    return messages.filter((m: any) => {
+      const role = m?.role || m?.sender || '';
+      const st =
+        m?.searchType ??
+        m?.type ??
+        m?.meta?.searchType ??
+        (Array.isArray(m?.tags) && m.tags.includes('network') ? 'network' : undefined);
+      if ((role === 'assistant' || role === 'ai') && st === 'network') return false;
+      return true;
+    });
+  }, [messages]);
+
   const isInitialView = !currentSessionId || messages.length === 0;
+
+  // 新しいメッセージを追加するための関数を定義
+  const addReplyMessage = useCallback((msg: any) => {
+    setMessages((prevMessages) => [...prevMessages, msg]);
+  }, [setMessages]);
+
+  // --- ここがポイント：送信の共通ハンドラ（InitialView も ChatInput もこれを使う） ---
+  const handleSend = async (text: string, searchType?: 'fact' | 'network') => {
+    if (projectId) {
+      try {
+        localStorage.setItem(`messages:${projectId}:${selectedFlow}`, '1');
+      } catch {}
+    }
+
+    // 人脈検索：カード挿入のため pendingQueue → user メッセージ確定後に紐づける
+    if (searchType === 'network') {
+      if (networkLock.current) return;
+      networkLock.current = true;
+
+      // network送信をキューに積む（userメッセージIDは後で拾う）
+      pendingNetworkQueue.current.push({ query: text.trim() });
+
+      // ユーザー発話は並行で送信（awaitしない）
+      sendMessage(text, searchType, selectedFlow, projectId)
+        .catch((e: any) => console.error('sendMessage(network) failed', e))
+        .finally(() => {
+          networkLock.current = false;
+        });
+      return;
+    }
+
+    // 通常/ファクト
+    await sendMessage(text, searchType, selectedFlow, projectId);
+  };
+  // --------------------------------------------------------------------
+
+  // pendingQueue と追加済みメッセージを突き合わせ、カードを親メッセージ直下に差し込む
+  useEffect(() => {
+    if (pendingNetworkQueue.current.length === 0) return;
+
+    const reversed = [...messages].reverse();
+
+    while (pendingNetworkQueue.current.length > 0) {
+      const { query } = pendingNetworkQueue.current[0];
+
+      const targetUserMsg = reversed.find((m: any) => {
+        const role = m?.role || m?.sender;
+        const text = (m?.content ?? m?.text ?? '').trim();
+        const st =
+          m?.searchType ??
+          m?.type ??
+          m?.meta?.searchType ??
+          (Array.isArray(m?.tags) && m.tags.includes('network') ? 'network' : undefined);
+
+        // st==='network' を“任意”にしつつ、本文一致で絞る
+        const isNetworkLike = st === 'network' || true; // ← フォールバックで許容
+        return role === 'user' && isNetworkLike && text === query && !peopleCardsByMsg[m.id];
+      });
+
+
+      if (!targetUserMsg) break;
+
+      const parentId = targetUserMsg.id as string;
+      const cardId = crypto.randomUUID();
+
+      // 仮カードを挿入
+      setPeopleCardsByMsg((prev) => ({
+        ...prev,
+        [parentId]: { id: cardId, query, items: [], narrative: undefined, isLoading: true },
+      }));
+
+      // APIで上書き（★ここを /api/people/ask に差し替え）
+      (async () => {
+        try {
+          const res = await fetch('/api/people/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question: query,
+              top_k: 5,
+              coworker_id: 0, // 必要なら実ユーザIDに差し替え
+            }),
+          });
+          const ask = await res.json().catch(() => ({}));
+          const items: Candidate[] = Array.isArray(ask?.candidates) ? ask.candidates : [];
+          const narrative: string | undefined = typeof ask?.narrative === 'string' ? ask.narrative : undefined;
+          setPeopleCardsByMsg((prev) =>
+            prev[parentId] ? { ...prev, [parentId]: { ...prev[parentId], items, narrative, isLoading: false } } : prev
+          );
+        } catch (e) {
+          console.error('人物検索に失敗しました', e);
+          setPeopleCardsByMsg((prev) =>
+            prev[parentId] ? { ...prev, [parentId]: { ...prev[parentId], items: [], isLoading: false } } : prev
+          );
+        }
+      })();
+
+      pendingNetworkQueue.current.shift();
+    }
+  }, [messages, peopleCardsByMsg, addReplyMessage]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
-      {/* 左：サイドバー（フロー選択＋履歴＋「内容を整理する」ボタン） */}
       <ChatSidebar
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSelectSession={(sessionId) => selectSession(sessionId)}
-        onNewChat={() => startNewChat()}
-        selectedFlow={selectedFlow}                    // ★ アクティブ表示に使用
-        onSelectFlow={(f) => setSelectedFlow(f)}       // ★ クリックで切替
-        onToggleOrganizer={() => setOrganizerOpen(v => !v)} // ★ 右パネル開閉
+        onNewChat={() => {
+          setPeopleCardsByMsg({});
+          startNewChat();
+        }}
+        selectedFlow={selectedFlow}
+        onSelectFlow={(f) => setSelectedFlow(f)}
+        onToggleOrganizer={() => setOrganizerOpen((v) => !v)}
       />
 
-      {/* 中央：メッセージ本体 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* プロジェクト情報ヘッダー */}
         {project && (
           <div className="bg-white border-b border-gray-200 px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Link 
+                <Link
                   href={`/project?project_id=${projectId}`}
                   className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
                 >
@@ -124,25 +240,45 @@ export default function MessagesApp({
                   </p>
                 </div>
               </div>
-              <div className="text-xs text-gray-400">
-                オーナー: {project.owner_name}
-              </div>
+              <div className="text-xs text-gray-400">オーナー: {project.owner_name}</div>
             </div>
           </div>
         )}
+
         {isInitialView ? (
-          <InitialView 
-            onSendMessage={(text, searchType) => sendMessage(text, searchType, selectedFlow, projectId)} 
-            isLoading={isLoading} 
-          />
+          // ★ ここを sendMessage 直呼びから「共通ハンドラ」に変更
+          <InitialView onSendMessage={handleSend} isLoading={isLoading} />
         ) : (
           <>
-            {/* メッセージ一覧 */}
             <div className="flex-1 overflow-y-auto px-4 bg-gradient-to-br from-gray-50 via-white to-blue-50">
               <div className="max-w-4xl mx-auto py-6 space-y-1">
-                {messages.map((message) => (
-                  <ChatMessage key={message.id} message={message} />
-                ))}
+                {visibleMessages.map((message: any) => {
+                  const card = peopleCardsByMsg[message.id as string];
+                  return (
+                    <React.Fragment key={message.id}>
+                      <ChatMessage message={message} />
+                      {card && (
+                        <div className="flex gap-4 p-4">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xs">
+                            AI
+                          </div>
+                          <div className="flex-1 max-w-3xl">
+                            <div className="inline-block p-4 rounded-2xl bg-white border border-gray-200 rounded-bl-md w-full">
+                              <div className="text-xs text-gray-500 mb-2">「{card.query}」の人物検索結果</div>
+                              {card.isLoading ? (
+                                <div className="text-sm text-gray-500">検索中…</div>
+                              ) : (
+                                // onSendMessage propsを追加
+                                <PeopleSearchReply items={card.items} narrative={card.narrative} />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
                 {isLoading && (
                   <div className="flex gap-4 p-4 animate-pulse">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
@@ -163,27 +299,16 @@ export default function MessagesApp({
               </div>
             </div>
 
-            {/* 入力欄（送信時に進捗フラグを保存 → /project で濃色表示に使用） */}
-            <ChatInput
-              isLoading={isLoading}
-              onSendMessage={async (text: string, searchType?: 'fact' | 'network') => {
-                if (projectId) {
-                  try {
-                    localStorage.setItem(`messages:${projectId}:${selectedFlow}`, '1');
-                  } catch {}
-                }
-                await sendMessage(text, searchType, selectedFlow, projectId);
-              }}
-            />
+            {/* チャット入力も同じ共通ハンドラを使用 */}
+            <ChatInput isLoading={isLoading} onSendMessage={handleSend} />
           </>
         )}
       </div>
 
-      {/* 右：内容整理パネル（トグル表示） */}
       {organizerOpen && (
         <ContentOrganizer
           projectId={projectId}
-          flow={selectedFlow} 
+          flow={selectedFlow}
           onSaved={() => {
             if (!projectId) return;
             try {
