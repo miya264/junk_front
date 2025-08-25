@@ -43,13 +43,17 @@ jobs:
           if [ -d ".next/static" ]; then
             cp -r .next/static .next/standalone/.next/static
           fi
-          if [ -d "public" ]; then
-            mkdir -p .next/standalone/public
-            cp -r public/* .next/standalone/public/ || true
+          
+          # publicディレクトリを確実に作成してコピー
+          mkdir -p .next/standalone/public
+          if [ -d "public" ] && [ "$(ls -A public 2>/dev/null)" ]; then
+            cp -r public/* .next/standalone/public/
           fi
 
           # 配信中のコミットを可視化（https://<app>/version.txt で確認）
           echo "${GITHUB_SHA}" > .next/standalone/public/version.txt
+          echo "Commit: ${GITHUB_SHA}" > .next/standalone/public/build-info.txt
+          echo "Build time: $(date)" >> .next/standalone/public/build-info.txt
 
           # 起動用 package.json を明示（standalone は node server.js で起動）
           cat > .next/standalone/package.json <<'EOF'
@@ -66,6 +70,12 @@ jobs:
           EOF
           echo '{}' > .next/standalone/package-lock.json
 
+          # デバッグ: ファイル構造を確認
+          echo "=== Standalone directory structure ==="
+          ls -la .next/standalone/
+          echo "=== Public directory contents ==="
+          ls -la .next/standalone/public/ || echo "Public directory not found"
+          
           # zip（中身がデプロイルートに展開される）
           cd .next/standalone
           zip -r ../../release.zip .
