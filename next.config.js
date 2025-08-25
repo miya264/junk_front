@@ -6,8 +6,36 @@ const PROD_API = process.env.NEXT_PUBLIC_API_ENDPOINT; // 例: https://your-fast
 const nextConfig = {
   output: 'standalone',
 
+  // ★ キャッシュ制御ヘッダ
+  async headers() {
+    return [
+      // Next が吐くハッシュ付きビルド成果物（長期キャッシュOK）
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // public/images 配下などハッシュなしの静的ファイルは短め
+      {
+        source: '/images/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+      // それ以外（HTML/SSR/APIなど）は都度取得
+      {
+        // _next/static と /images を除外して全体に適用
+        source: '/((?!_next/static|images).*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+        ],
+      },
+    ];
+  },
+
+  // ★ API リライト（dev: ローカル, prod: ENV）
   async rewrites() {
-    // dev は必ずローカル FastAPI へ、prod は ENV があればそこへ
     const target = isDev ? 'http://127.0.0.1:8001' : (PROD_API || null);
 
     if (!target) {
