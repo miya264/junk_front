@@ -42,11 +42,31 @@ jobs:
           echo "EMERGENCY DEPLOY - $(date) - ${GITHUB_SHA}" > out/DEPLOY-STATUS.txt
           echo "${GITHUB_SHA}" > out/version.txt
           
+          # 静的ファイル配信用のpackage.jsonを追加
+          cat > out/package.json <<'EOF'
+          {
+            "name": "static-site",
+            "private": true,
+            "scripts": {
+              "start": "npx serve -s . -l 8080"
+            },
+            "engines": {
+              "node": ">=18"
+            }
+          }
+          EOF
+          
           # 現在の内容を確認
           echo "=== EMERGENCY - Out directory contents ==="
           ls -la out/
           echo "=== Emergency test file exists? ==="
           ls -la out/emergency-test.html || echo "MISSING!"
+          echo "=== Index.html exists? ==="
+          ls -la out/index.html || echo "INDEX.HTML MISSING!"
+          
+          # index.htmlの中身も確認
+          echo "=== Index.html content preview ==="
+          head -10 out/index.html || echo "CANNOT READ INDEX.HTML!"
           
       - name: Prepare Static Site Package
         run: |
@@ -84,5 +104,6 @@ jobs:
           package: release.zip
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8903329C1AAE4120A1D6B4AB2C5031D8 }}
           type: 'zip'
-          # 強制的に新しいデプロイとして認識させる
           clean: true
+          # 静的ファイル配信用のスタートアップコマンドを設定 (PHPランタイム使用で静的ファイル配信)
+          startup-command: ''
