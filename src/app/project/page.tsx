@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import TopActions from '@/components/TopActions';
 import ProjectTags from '@/components/ProjectTags';
 import ProjectCard from '@/components/ProjectCard';
+import AuthGuard from '@/components/AuthGuard';
 import { ApiService, type Project } from '@/services';
 
 type FlowKey =
@@ -127,7 +128,8 @@ function ProjectPageInner() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <AuthGuard>
+      <main className="min-h-screen bg-gray-100">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <Header />
         <TopActions />
@@ -168,14 +170,17 @@ function ProjectPageInner() {
         </section>
       </div>
     </main>
+    </AuthGuard>
   );
 }
 
 // ✅ ここがページのエクスポート：Suspense で包む
 export default function ProjectPage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading project…</div>}>
-      <ProjectPageInner />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={<div className="p-6">Loading project…</div>}>
+        <ProjectPageInner />
+      </Suspense>
+    </AuthGuard>
   );
 }

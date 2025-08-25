@@ -2,11 +2,12 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Home, ClipboardList, Target, Lightbulb, Settings2, FileText, ChevronDown } from 'lucide-react';
 import { ConnectionTest } from '@/components/ConnectionTest';
 import type { FlowKey } from '@/types/flow';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Props = {
   // 既存 useChat() 連携
@@ -21,6 +22,8 @@ type Props = {
 
   // 追加：「内容を整理する」開閉
   onToggleOrganizer: () => void;
+  // 現在のプロジェクトID（ホームで戻る先）
+  projectId?: string;
 };
 
 export default function ChatSidebar({
@@ -31,6 +34,7 @@ export default function ChatSidebar({
   selectedFlow,
   onSelectFlow,
   onToggleOrganizer,
+  projectId,
 }: Props) {
   const router = useRouter(); 
 
@@ -45,22 +49,18 @@ export default function ChatSidebar({
   return (
     <aside className="w-64 h-full bg-white border-r border-gray-200 flex flex-col">
       {/* ユーザー */}
-      <div className="px-4 py-4 border-b border-gray-100 flex items-center gap-3">
-        <img src="/avatar.png" className="w-10 h-10 rounded-full object-cover" alt="user" />
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-gray-800 truncate">鈴木 理沙</div>
-          <div className="text-xs text-gray-500 truncate">自治体担当・政策推進</div>
-        </div>
-      </div>
+      <UserSection />
 
       {/* ホーム＝新規チャット */}
       <div className="px-4 pt-4">
         <button
           onClick={() => {
-            // 必要なら新規セッション開始などの処理
             onNewChat?.();
-            // /project_start へ画面遷移
-            router.push('/project_start');
+            if (projectId) {
+              router.push(`/project?project_id=${encodeURIComponent(projectId)}`);
+            } else {
+              router.push('/project_start');
+            }
           }}
           className="w-full inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-slate-700 text-white hover:opacity-90 transition"
         >
@@ -138,5 +138,64 @@ export default function ChatSidebar({
         <ConnectionTest />
       </div>
     </aside>
+  );
+}
+
+function UserSection() {
+  const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  if (!user) {
+    return (
+      <div className="px-4 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-300" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-gray-800 truncate">ゲスト</div>
+          <div className="text-xs text-gray-500 truncate">未ログイン</div>
+        </div>
+      </div>
+    );
+  }
+
+  const initials = (user.full_name || user.name).slice(0, 1);
+
+  return (
+    <div className="px-4 py-4 border-b border-gray-100" ref={ref}>
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-600 text-white flex items-center justify-center text-sm font-semibold select-none">
+          {initials}
+        </div>
+        <div className="min-w-0 text-left">
+          <div className="text-sm font-semibold text-gray-800 truncate">{user.full_name || user.name}</div>
+          <div className="text-xs text-gray-500 truncate">{user.department_name || user.email}</div>
+        </div>
+      </button>
+      {open && (
+        <div className="mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
+          <div className="p-3 border-b border-gray-100">
+            <div className="font-medium text-gray-800">{user.full_name || user.name}</div>
+            <div className="text-xs text-gray-500">{user.department_name}</div>
+            <div className="text-xs text-gray-400">{user.email}</div>
+          </div>
+          <div className="p-2">
+            <button
+              onClick={async () => { await logout(); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+            >
+              ログアウト
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

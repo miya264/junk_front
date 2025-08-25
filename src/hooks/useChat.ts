@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Message, ChatSession, ApiMessage } from '@/types/Message';
-import { api, ApiError, SessionState, MessageRequest } from '@/utils/api';
+import { ApiError } from '@/services/apiClient';
+import { ChatService, SessionState, MessageRequest } from '@/services/chatService';
 import type { FlowKey } from '@/types/flow';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8000';
@@ -139,11 +140,11 @@ export const useChat = (onStepChange?: (newStep: FlowKey) => void) => {
       // 検索タイプが指定されている場合はRAG/通常チャットAPIを優先
       // （バックエンド側は search_type 優先で処理されるため flow_step 同送でも問題なし）
       if (searchType === 'fact' || searchType === 'network') {
-        response = await api.sendMessage(requestData);
+        response = await ChatService.sendMessage(requestData);
         assistantMessage = convertApiMessageToMessage(response);
       } else if (flowStep) {
         // フローステップがある場合は柔軟なポリシーシステムを使用
-        const flexibleResponse = await api.sendFlexiblePolicyMessage(requestData);
+        const flexibleResponse = await ChatService.sendFlexiblePolicyMessage(requestData);
 
         // セッション状態を更新
         if (flexibleResponse.full_state) {
@@ -169,7 +170,7 @@ export const useChat = (onStepChange?: (newStep: FlowKey) => void) => {
           searchType: undefined,
         };
       } else {
-        response = await api.sendMessage(requestData);
+        response = await ChatService.sendMessage(requestData);
         assistantMessage = convertApiMessageToMessage(response);
       }
 

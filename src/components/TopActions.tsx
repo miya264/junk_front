@@ -1,6 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserId } from '@/utils/userUtils';
 import { ApiService, type Project } from '@/services';
 
 export default function TopActions({ searchHref = '/project_start/search' }: { searchHref?: string }) {
@@ -8,9 +10,9 @@ export default function TopActions({ searchHref = '/project_start/search' }: { s
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
-  // TODO: 実際のログインユーザーIDを取得
-  const currentUserId = 1;
+  const currentUserId = getUserId(user);
 
   useEffect(() => {
     const load = async () => {

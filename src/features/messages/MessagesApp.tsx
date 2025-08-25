@@ -15,6 +15,7 @@ import ContentOrganizer from './components/ContentOrganizer';
 import { ConnectionTest } from '@/components/ConnectionTest';
 import { useChat } from '@/hooks/useChat';
 import type { FlowKey } from '@/types/flow';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function MessagesApp({
@@ -90,6 +91,9 @@ export default function MessagesApp({
 
   const isInitialView = !currentSessionId || messages.length === 0;
 
+  // ログインユーザー情報（右上アイコンは表示しない方針）
+  const { user } = useAuth();
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
       {/* 左：サイドバー（フロー選択＋履歴＋「内容を整理する」ボタン） */}
@@ -101,6 +105,7 @@ export default function MessagesApp({
         selectedFlow={selectedFlow}                    // ★ アクティブ表示に使用
         onSelectFlow={(f) => setSelectedFlow(f)}       // ★ クリックで切替
         onToggleOrganizer={() => setOrganizerOpen(v => !v)} // ★ 右パネル開閉
+        projectId={projectId}
       />
 
       {/* 中央：メッセージ本体 */}
@@ -109,28 +114,17 @@ export default function MessagesApp({
         {project && (
           <div className="bg-white border-b border-gray-200 px-6 py-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Link 
-                  href={`/project?project_id=${projectId}`}
-                  className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm">プロジェクトに戻る</span>
-                </Link>
-                <div>
-                  <h1 className="text-lg font-semibold text-gray-900">{project.name}</h1>
-                  <p className="text-sm text-gray-500">
-                    {selectedFlow === 'analysis' && '現状分析・課題整理'}
-                    {selectedFlow === 'objective' && '目的整理'}
-                    {selectedFlow === 'concept' && 'コンセプト策定'}
-                    {selectedFlow === 'plan' && '施策案作成'}
-                    {selectedFlow === 'proposal' && '提案書作成'}
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">{project.name}</h1>
+                <p className="text-sm text-gray-500">
+                  {selectedFlow === 'analysis' && '現状分析・課題整理'}
+                  {selectedFlow === 'objective' && '目的整理'}
+                  {selectedFlow === 'concept' && 'コンセプト策定'}
+                  {selectedFlow === 'plan' && '施策案作成'}
+                  {selectedFlow === 'proposal' && '提案書作成'}
+                </p>
               </div>
-              <div className="text-xs text-gray-400">
-                オーナー: {project.owner_name}
-              </div>
+              <div className="text-xs text-gray-400">オーナー: {project.owner_name}</div>
             </div>
           </div>
         )}

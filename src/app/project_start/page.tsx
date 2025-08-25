@@ -5,14 +5,18 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { ApiService, type Project } from '@/services';
 import Header from '@/components/Header'; // ← 追加
+import AuthGuard from '@/components/AuthGuard';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserId } from '@/utils/userUtils';
 
 export default function ProjectStart() {
   const [open, setOpen] = useState(false);
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
-  const currentUserId = 1; // TODO: 実際のログインユーザーIDを取得
+  const currentUserId = getUserId(user);
 
   // 自分のプロジェクト一覧を取得
   const loadMyProjects = async () => {
@@ -36,7 +40,8 @@ export default function ProjectStart() {
   }, [open]);
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <AuthGuard>
+      <main className="min-h-screen bg-gray-100">
       <div className="max-w-4xl mx-auto px-4 py-10">
         {/* ▼ 共通ヘッダー（ロゴ + ユーザー情報） */}
         <div className="mb-10">
@@ -114,5 +119,6 @@ export default function ProjectStart() {
         </div>
       </div>
     </main>
+    </AuthGuard>
   );
 }

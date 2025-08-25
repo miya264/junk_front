@@ -1,6 +1,7 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
 import MessagesApp from '@/features/messages/MessagesApp';
+import AuthGuard from '@/components/AuthGuard';
 import { Suspense } from 'react';
 
 function MessagesContent() {
@@ -13,8 +14,10 @@ function MessagesContent() {
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <MessagesContent />
-    </Suspense>
+    <AuthGuard>
+      <Suspense fallback={<div>Loading...</div>}>
+        <MessagesContent />
+      </Suspense>
+    </AuthGuard>
   );
 }

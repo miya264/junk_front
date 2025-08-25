@@ -8,7 +8,7 @@ const nextConfig = {
 
   async rewrites() {
     // dev は必ずローカル FastAPI へ、prod は ENV があればそこへ
-    const target = isDev ? 'http://127.0.0.1:8000' : (PROD_API || null);
+    const target = isDev ? 'http://127.0.0.1:8001' : (PROD_API || null);
 
     if (!target) {
       console.warn('NEXT_PUBLIC_API_ENDPOINT not set for production; /api proxy disabled');
