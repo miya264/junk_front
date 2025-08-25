@@ -56,7 +56,7 @@ jobs:
           }
           EOF
           
-          # API プロキシ付きNode.jsサーバーを作成
+          # 改良されたAPI プロキシ付きNode.jsサーバーを作成
           cat > out/server.js <<'EOF'
           const express = require('express');
           const { createProxyMiddleware } = require('http-proxy-middleware');
@@ -64,21 +64,53 @@ jobs:
           
           const app = express();
           const PORT = process.env.PORT || 3000;
-          const API_ENDPOINT = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net';
+          const API_ENDPOINT = (process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://aps-junk-02-h7hxetfcdkfpeydk.canadacentral-01.azurewebsites.net').replace(/\/$/, '');
+          
+          // CORS設定
+          app.use((req, res, next) => {
+            res.header('Access-Control-Allow-Origin', '*');
+            res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+            if (req.method === 'OPTIONS') {
+              res.sendStatus(200);
+            } else {
+              next();
+            }
+          });
+          
+          // JSONボディパーサー
+          app.use(express.json());
+          app.use(express.urlencoded({ extended: true }));
           
           // APIプロキシ設定（/api/* を実際のAPIエンドポイントにプロキシ）
           app.use('/api', createProxyMiddleware({
             target: API_ENDPOINT,
             changeOrigin: true,
+            secure: true,
             pathRewrite: {
               '^/api': '' // /api を削除して実際のAPIに転送
             },
             onError: (err, req, res) => {
-              console.error('API Proxy Error:', err.message);
-              res.status(500).json({ error: 'API Proxy Error', details: err.message });
+              console.error('❌ API Proxy Error:', err.message);
+              console.error('Request:', req.method, req.originalUrl);
+              console.error('Target:', API_ENDPOINT);
+              res.status(500).json({ 
+                error: 'API Proxy Error', 
+                details: err.message,
+                target: API_ENDPOINT,
+                path: req.originalUrl 
+              });
             },
             onProxyReq: (proxyReq, req, res) => {
-              console.log('API Proxy Request:', req.method, req.url, '→', API_ENDPOINT + req.url.replace('/api', ''));
+              const targetUrl = API_ENDPOINT + req.url.replace('/api', '');
+              console.log('🔄 API Proxy Request:', req.method, req.originalUrl, '→', targetUrl);
+              
+              // リクエストヘッダーをログ出力
+              console.log('📤 Request headers:', JSON.stringify(req.headers, null, 2));
+            },
+            onProxyRes: (proxyRes, req, res) => {
+              console.log('📥 API Proxy Response:', proxyRes.statusCode, req.originalUrl);
+              console.log('📥 Response headers:', JSON.stringify(proxyRes.headers, null, 2));
             }
           }));
           
@@ -91,13 +123,14 @@ jobs:
             if (!req.path.startsWith('/api/')) {
               res.sendFile(path.join(__dirname, 'index.html'));
             } else {
-              res.status(404).json({ error: 'API endpoint not found' });
+              res.status(404).json({ error: 'API endpoint not found', path: req.path });
             }
           });
           
           app.listen(PORT, () => {
-            console.log(`Server with API proxy running on port ${PORT}`);
-            console.log(`API requests /api/* will be proxied to: ${API_ENDPOINT}`);
+            console.log('🚀 Server with API proxy running on port', PORT);
+            console.log('🌐 API requests /api/* will be proxied to:', API_ENDPOINT);
+            console.log('🔗 Frontend URL:', `http://localhost:${PORT}`);
           });
           EOF
           
