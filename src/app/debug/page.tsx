@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 import { ApiService } from '@/services';
 
 export default function DebugPage() {
-  const [clientInfo, setClientInfo] = useState<any>(null);
+  const [clientInfo, setClientInfo] = useState<{
+    hostname: string;
+    origin: string;
+    isProd: boolean;
+    envVariable: string | undefined;
+    userAgent: string;
+  } | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
 

@@ -10,9 +10,10 @@ export interface MessageRequest {
   content: string;
   search_type?: 'fact' | 'network';
   flow_step?: 'analysis' | 'objective' | 'concept' | 'plan' | 'proposal';
-  context?: any;
+  context?: Record<string, unknown>;
   session_id?: string;
   project_id?: string;
+  [key: string]: unknown;
 }
 
 export interface MessageResponse {
@@ -37,6 +38,8 @@ export interface FlexiblePolicyResponse {
   timestamp: string;
   session_id: string;
   project_id?: string;
+  type?: string;
+  navigate_to?: string;
   full_state?: {
     analysis_result?: string;
     objective_result?: string;
@@ -68,7 +71,7 @@ export class ChatService {
    */
   static async sendMessage(request: MessageRequest): Promise<MessageResponse> {
     console.log('[ChatService] Sending message:', request);
-    return await post<MessageResponse>('/api/chat', request);
+    return await post<MessageResponse, MessageRequest>('/api/chat', request);
   }
 
   /**
@@ -76,7 +79,7 @@ export class ChatService {
    */
   static async sendFlexiblePolicyMessage(request: MessageRequest): Promise<FlexiblePolicyResponse> {
     console.log('[ChatService] Sending flexible policy message:', request);
-    return await post<FlexiblePolicyResponse>('/api/policy-flexible', request);
+    return await post<FlexiblePolicyResponse, MessageRequest>('/api/policy-flexible', request);
   }
 
   /**

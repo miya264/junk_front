@@ -1,7 +1,7 @@
 // 環境変数の読み込みを確実にする
 const getApiBaseUrl = () => {
   // まずビルド時の環境変数を試す
-  let endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
+  const endpoint = process.env.NEXT_PUBLIC_API_ENDPOINT;
   
   // クライアントサイドでの動的判定
   if (typeof window !== 'undefined') {
@@ -39,7 +39,7 @@ export interface MessageRequest {
   content: string;
   search_type?: 'fact' | 'network';
   flow_step?: 'analysis' | 'objective' | 'concept' | 'plan' | 'proposal';
-  context?: any;
+  context?: Record<string, unknown>;
   session_id?: string;
   project_id?: string;
 }
