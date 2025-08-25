@@ -1,45 +1,83 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy Node.js app to Azure Web App - aps-junk-01
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
+
+env:
+  # ルートに Next アプリがあるなら "."、サブディレクトリなら "front2" 等に変更
+  APP_DIR: "front2"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
+    defaults:
+      run:
+        working-directory: ${{ env.APP_DIR }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
           cache: 'npm'
+          cache-dependency-path: ${{ env.APP_DIR }}/package-lock.json
 
-      - name: npm install and build
+      - name: Install & Build
+        env:
+          # ビルド時にフロントへ埋め込む環境変数
+          NEXT_PUBLIC_API_ENDPOINT: ${{ secrets.NEXT_PUBLIC_API_ENDPOINT }}
+          NEXT_PUBLIC_ASSET_VERSION: ${{ github.sha }}
+          NEXT_TELEMETRY_DISABLED: '1'
         run: |
-          npm install
+          npm ci
           npm run build
 
-      - name: Zip standalone build for deployment
+      - name: Bundle Next.js standalone
         run: |
-          # .next/static を .next/standalone/.next/static にコピー
-          cp -r .next/static .next/standalone/.next/static
-          zip -r release.zip ./.next/standalone/
+          # standalone 成果物に必要な静的資産を同梱
+          mkdir -p .next/standalone/.next
+          if [ -d ".next/static" ]; then
+            cp -r .next/static .next/standalone/.next/static
+          fi
+          if [ -d "public" ]; then
+            mkdir -p .next/standalone/public
+            cp -r public/* .next/standalone/public/ || true
+          fi
 
-      - name: Upload artifact for deployment job
+          # 配信中のコミットを可視化（https://<app>/version.txt で確認）
+          echo "${GITHUB_SHA}" > .next/standalone/public/version.txt
+
+          # 起動用 package.json を明示（standalone は node server.js で起動）
+          cat > .next/standalone/package.json <<'EOF'
+          {
+            "name": "next-standalone",
+            "private": true,
+            "scripts": {
+              "start": "node server.js"
+            },
+            "engines": {
+              "node": ">=18"
+            }
+          }
+          EOF
+          echo '{}' > .next/standalone/package-lock.json
+
+          # zip（中身がデプロイルートに展開される）
+          cd .next/standalone
+          zip -r ../../release.zip .
+          cd - 1>/dev/null
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: release.zip
+          path: ${{ env.APP_DIR }}/release.zip
           retention-days: 1
 
   deploy:
@@ -47,22 +85,16 @@ jobs:
     needs: build
 
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
           path: .
 
-      - name: Unzip artifact
-        run: |
-          # `release.zip` を解凍すると、`./.next/standalone` ディレクトリが作成される
-          unzip -o release.zip -d .
-
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'aps-junk-01'
-          slot-name: 'Production'
-          package: .
+          slot-name: 'production'            # ← 小文字でOK（Productionでも可）
+          package: release.zip
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_8903329C1AAE4120A1D6B4AB2C5031D8 }}

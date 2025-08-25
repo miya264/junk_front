@@ -1,15 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Message, ChatSession, ApiMessage } from '../types/Message';
-import { api, ApiError } from '../utils/api';
+import { Message, ChatSession, ApiMessage } from '@/types/Message';
+import { ApiError } from '@/services/apiClient';
+import { ChatService, SessionState, MessageRequest } from '@/services/chatService';
+import type { FlowKey } from '@/types/flow';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://127.0.0.1:8000';
 
 // セッション管理をローカルストレージに永続化
 const STORAGE_KEY = 'chat_sessions';
 
-export const useChat = () => {
+export const useChat = (onStepChange?: (newStep: FlowKey) => void) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<SessionState | null>(null);
   
   const currentSession = sessions.find(s => s.id === currentSessionId);
   const messages = currentSession?.messages || [];
@@ -21,11 +26,11 @@ export const useChat = () => {
       if (savedSessions) {
         const parsed = JSON.parse(savedSessions);
         // Date オブジェクトを復元
-        const sessionsWithDates = parsed.map((session: any) => ({
+        const sessionsWithDates = parsed.map((session: { createdAt: string; updatedAt: string; messages: Array<{ timestamp: string }> }) => ({
           ...session,
           createdAt: new Date(session.createdAt),
           updatedAt: new Date(session.updatedAt),
-          messages: session.messages.map((msg: any) => ({
+          messages: session.messages.map((msg: { timestamp: string }) => ({
             ...msg,
             timestamp: new Date(msg.timestamp)
           }))
@@ -82,10 +87,10 @@ export const useChat = () => {
     content: apiMsg.content,
     role: apiMsg.type === 'ai' ? 'assistant' : 'user',
     timestamp: new Date(apiMsg.timestamp),
-    searchType: apiMsg.search_type as 'fact' | 'network' | undefined,
+    searchType: (apiMsg.search_type === 'fact' || apiMsg.search_type === 'network') ? apiMsg.search_type : undefined,
   });
 
-  const sendMessage = useCallback(async (content: string, searchType?: 'fact' | 'network') => {
+  const sendMessage = useCallback(async (content: string, searchType?: 'fact' | 'network', flowStep?: FlowKey, projectId?: string) => {
     let sessionId = currentSessionId;
     
     // 新しいセッションを作成（初回メッセージの場合）
@@ -98,7 +103,7 @@ export const useChat = () => {
       content,
       role: 'user',
       timestamp: new Date(),
-      searchType,
+      searchType: (searchType === 'fact' || searchType === 'network') ? searchType : undefined,
     };
 
     // ユーザーメッセージを追加（関数型更新を使用）
@@ -121,12 +126,53 @@ export const useChat = () => {
 
     try {
       // バックエンドにメッセージを送信
-      const response = await api.sendMessage({
+      const requestData: MessageRequest = {
         content,
-        search_type: searchType || 'normal',
-      });
+        search_type: searchType,
+        flow_step: flowStep,
+        session_id: sessionId!,
+        project_id: projectId,
+      };
+      
+      let response;
+      let assistantMessage;
+      
+      // 検索タイプが指定されている場合はRAG/通常チャットAPIを優先
+      // （バックエンド側は search_type 優先で処理されるため flow_step 同送でも問題なし）
+      if (searchType === 'fact' || searchType === 'network') {
+        response = await ChatService.sendMessage(requestData);
+        assistantMessage = convertApiMessageToMessage(response);
+      } else if (flowStep) {
+        // フローステップがある場合は柔軟なポリシーシステムを使用
+        const flexibleResponse = await ChatService.sendFlexiblePolicyMessage(requestData);
 
-      const assistantMessage = convertApiMessageToMessage(response);
+        // セッション状態を更新
+        if (flexibleResponse.full_state) {
+          setSessionState({
+            session_id: flexibleResponse.session_id,
+            project_id: flexibleResponse.project_id,
+            ...flexibleResponse.full_state
+          });
+        }
+
+        // ステップ移動の処理
+        if (flexibleResponse.type === 'navigate' && flexibleResponse.navigate_to && onStepChange) {
+          const targetStep = flexibleResponse.navigate_to as FlowKey;
+          // ステップ変更のコールバックを実行
+          onStepChange(targetStep);
+        }
+
+        assistantMessage = {
+          id: flexibleResponse.id,
+          content: flexibleResponse.content,
+          role: 'assistant' as const,
+          timestamp: new Date(flexibleResponse.timestamp),
+          searchType: undefined,
+        };
+      } else {
+        response = await ChatService.sendMessage(requestData);
+        assistantMessage = convertApiMessageToMessage(response);
+      }
 
       // AIレスポンスを追加（関数型更新を使用）
       setSessions(prevSessions => {
@@ -145,17 +191,35 @@ export const useChat = () => {
       
     } catch (err) {
       console.error('Failed to send message:', err);
+      console.error('Error details:', {
+        name: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        apiEndpoint: API_BASE_URL || process.env.NEXT_PUBLIC_API_ENDPOINT
+      });
       
       let errorMessage = 'メッセージの送信に失敗しました。';
       
       if (err instanceof ApiError) {
+        console.log(`API Error - Status: ${err.status}, Message: ${err.message}`);
         if (err.status === 500) {
-          errorMessage = 'サーバーエラーが発生しました。しばらく待ってから再試行してください。';
-        } else if (err.status === 0 || err.message.includes('Network error')) {
-          errorMessage = 'バックエンドサーバーに接続できません。サーバーが起動しているか確認してください。';
+          errorMessage = `サーバーエラーが発生しました。(Status: ${err.status}) しばらく待ってから再試行してください。`;
+        } else if (err.status === 404) {
+          errorMessage = `APIエンドポイントが見つかりません。(Status: ${err.status}) サーバー設定を確認してください。`;
+        } else if (err.status === 0) {
+          errorMessage = `ネットワーク接続エラーです。CORS設定またはサーバーの起動状況を確認してください。`;
+        } else {
+          errorMessage = `API エラー (Status: ${err.status}): ${err.message}`;
         }
-      } else if (err instanceof Error && err.message.includes('Network error')) {
-        errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+      } else if (err instanceof Error) {
+        console.log(`Generic Error: ${err.message}`);
+        if (err.message.includes('Failed to fetch') || err.message.includes('Network error')) {
+          errorMessage = `ネットワークエラーが発生しました。API URL: ${API_BASE_URL || process.env.NEXT_PUBLIC_API_ENDPOINT}への接続を確認してください。`;
+        } else if (err.message.includes('CORS')) {
+          errorMessage = 'CORS エラーが発生しました。サーバーのCORS設定を確認してください。';
+        } else {
+          errorMessage = `エラーが発生しました: ${err.message}`;
+        }
       }
       
       setError(errorMessage);
@@ -195,5 +259,6 @@ export const useChat = () => {
     startNewChat,
     isLoading,
     error,
+    sessionState,
   };
 };
