@@ -7,7 +7,7 @@ on:
 
 env:
   # ルートに Next アプリがあるなら "."、サブディレクトリなら "front2" 等に変更
-  APP_DIR: "front2"
+  APP_DIR: "."
 
 jobs:
   build:
