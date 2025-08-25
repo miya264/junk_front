@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emergency Test - Latest Deploy</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        .timestamp { 
+            font-size: 24px; 
+            font-weight: bold; 
+            background: rgba(0,0,0,0.5);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚨 EMERGENCY TEST - THIS IS THE LATEST VERSION 🚨</h1>
+    <div class="timestamp">
+        Deployed at: <span id="timestamp"></span>
+    </div>
+    <p>If you can see this page with the colored background and this text, 
+       the deployment is working correctly!</p>
+    <p>Test URL: /emergency-test.html</p>
+    
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+    </script>
+</body>
+</html>
