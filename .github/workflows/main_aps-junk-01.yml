@@ -45,6 +45,37 @@ jobs:
           echo "Build time: $(date)" >> out/build-info.txt
           echo "Static site generated at: $(date)" >> out/build-info.txt
           
+          # Azure用のweb.configを作成（キャッシュ制御）
+          cat > out/web.config <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <system.webServer>
+              <staticContent>
+                <clientCache cacheControlMode="DisableCache" />
+              </staticContent>
+              <httpProtocol>
+                <customHeaders>
+                  <add name="Cache-Control" value="no-store, no-cache, must-revalidate" />
+                  <add name="Pragma" value="no-cache" />
+                  <add name="Expires" value="0" />
+                </customHeaders>
+              </httpProtocol>
+              <rewrite>
+                <rules>
+                  <rule name="React Router" stopProcessing="true">
+                    <match url=".*" />
+                    <conditions logicalGrouping="MatchAll">
+                      <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+                      <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+                    </conditions>
+                    <action type="Rewrite" url="/index.html" />
+                  </rule>
+                </rules>
+              </rewrite>
+            </system.webServer>
+          </configuration>
+          EOF
+          
           # デバッグ: 静的ファイル構造を確認
           echo "=== Static site structure ==="
           find out/ -type f | head -20

@@ -1,4 +1,4 @@
-// next.config.js - 静的サイト生成に変更
+// next.config.js - 静的サイト生成
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -7,18 +7,6 @@ const nextConfig = {
   
   images: { 
     unoptimized: true 
-  },
-  
-  // 静的ファイルでもキャッシュを制御
-  headers: async () => {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
-        ],
-      },
-    ];
   },
 };
 
