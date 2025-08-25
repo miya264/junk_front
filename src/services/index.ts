@@ -3,7 +3,7 @@
  * 各APIサービスを統合してエクスポート
  */
 
-import { testConnection, healthCheck, API_BASE_URL } from './apiClient';
+import { testConnection } from './apiClient';
 
 // API クライアント
 export { 
@@ -12,10 +12,8 @@ export {
   post, 
   put, 
   del, 
-  healthCheck, 
   testConnection, 
-  ApiError,
-  API_BASE_URL 
+  ApiError
 } from './apiClient';
 
 // プロジェクトサービス

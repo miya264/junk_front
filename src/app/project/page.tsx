@@ -93,7 +93,7 @@ function ProjectPageInner() {
       }
     });
     setProgress((prev) => {
-      const changed = Object.keys(next).some((k) => (next as any)[k] !== (prev as any)[k]);
+      const changed = Object.keys(next).some((k) => next[k as FlowKey] !== prev[k as FlowKey]);
       return changed ? next : prev;
     });
   }, [projectId]);

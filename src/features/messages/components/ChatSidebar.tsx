@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 type Props = {
   // 既存 useChat() 連携
-  sessions: any[];
+  sessions: Array<{ id: string; title: string; updatedAt: Date; messages: Array<{ id: string; content: string; role: string; timestamp: Date }> }>;
   currentSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
   onNewChat: () => void;
@@ -113,7 +113,7 @@ export default function ChatSidebar({
           </summary>
           <div className="mt-2 space-y-1 max-h-48 overflow-auto pr-1">
             {sessions?.length ? (
-              sessions.map((s: any) => (
+              sessions.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => onSelectSession(s.id)}

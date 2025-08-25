@@ -5,17 +5,13 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import ChatSidebar from './components/ChatSidebar';
 import { ChatMessage } from './components/ChatMessage';   // ★ named import
 import { ChatInput } from './components/ChatInput';       // ★ named import
 import InitialView from './components/InitialView';   // ★ default import
 import ContentOrganizer from './components/ContentOrganizer';
-import { ConnectionTest } from '@/components/ConnectionTest';
 import { useChat } from '@/hooks/useChat';
 import type { FlowKey } from '@/types/flow';
-import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function MessagesApp({
@@ -56,7 +52,7 @@ export default function MessagesApp({
   const [organizerOpen, setOrganizerOpen] = useState(false);
   
   // プロジェクト情報を取得
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<{ name: string; id: string; owner_name?: string } | null>(null);
   
   useEffect(() => {
     const loadProjectInfo = async () => {
@@ -92,7 +88,7 @@ export default function MessagesApp({
   const isInitialView = !currentSessionId || messages.length === 0;
 
   // ログインユーザー情報（右上アイコンは表示しない方針）
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">

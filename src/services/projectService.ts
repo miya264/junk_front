@@ -22,7 +22,7 @@ export interface Coworker {
 
 export interface ProjectCreateRequest {
   name: string;
-  description?: string;
+  description?: string | undefined;
   owner_coworker_id: number;
   member_ids: number[];
 }
@@ -69,7 +69,7 @@ export class ProjectService {
    */
   static async createProject(request: ProjectCreateRequest): Promise<Project> {
     console.log('[ProjectService] Creating project:', request);
-    return await post<Project>('/api/projects', request);
+    return await post<Project, ProjectCreateRequest>('/api/projects', request);
   }
 
   /**
@@ -95,7 +95,7 @@ export class ProjectService {
     request: ProjectStepSectionRequest
   ): Promise<ProjectStepSectionResponse[]> {
     console.log('[ProjectService] Saving project step sections:', request);
-    return await post<ProjectStepSectionResponse[]>('/api/project-step-sections', request);
+    return await post<ProjectStepSectionResponse[], ProjectStepSectionRequest>('/api/project-step-sections', request);
   }
 
   /**

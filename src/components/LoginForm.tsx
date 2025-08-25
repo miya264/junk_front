@@ -30,7 +30,7 @@ function clearLock() {
 
 export default function LoginForm() {
   const router = useRouter();
-  const { login, error: authError, isLoading: authLoading } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -65,7 +65,7 @@ export default function LoginForm() {
 
       // ログイン成功後、project_startに遷移
       router.push('/project_start');
-    } catch (err) {
+    } catch {
       // 失敗回数カウント
       const info = getLockInfo();
       const next = (info.count || 0) + 1;

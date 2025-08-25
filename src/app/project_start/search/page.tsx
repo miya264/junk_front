@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserId } from '@/utils/userUtils';
 import { ApiService } from '@/services';
-import type { Project } from '@/services';
 
 const DUMMY_ROWS: Row[] = [
   { id: 'p-101', date: '2023/01/15', title: '再エネ導入支援', owner: '山口 真理子', bureau: 'エネルギー庁' },

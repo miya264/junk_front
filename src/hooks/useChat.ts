@@ -26,11 +26,11 @@ export const useChat = (onStepChange?: (newStep: FlowKey) => void) => {
       if (savedSessions) {
         const parsed = JSON.parse(savedSessions);
         // Date オブジェクトを復元
-        const sessionsWithDates = parsed.map((session: any) => ({
+        const sessionsWithDates = parsed.map((session: { createdAt: string; updatedAt: string; messages: Array<{ timestamp: string }> }) => ({
           ...session,
           createdAt: new Date(session.createdAt),
           updatedAt: new Date(session.updatedAt),
-          messages: session.messages.map((msg: any) => ({
+          messages: session.messages.map((msg: { timestamp: string }) => ({
             ...msg,
             timestamp: new Date(msg.timestamp)
           }))
