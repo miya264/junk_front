@@ -6,29 +6,16 @@ const PROD_API = process.env.NEXT_PUBLIC_API_ENDPOINT; // 例: https://your-fast
 const nextConfig = {
   output: 'standalone',
 
-  // ★ キャッシュ制御ヘッダ
+  // ★ キャッシュ制御ヘッダ（一時的に無効化）
   async headers() {
     return [
-      // Next が吐くハッシュ付きビルド成果物（長期キャッシュOK）
+      // 全てのファイルでキャッシュを無効化（デバッグ用）
       {
-        source: '/_next/static/:path*',
+        source: '/(.*)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
-      // public/images 配下などハッシュなしの静的ファイルは短め
-      {
-        source: '/images/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=3600' },
-        ],
-      },
-      // それ以外（HTML/SSR/APIなど）は都度取得
-      {
-        // _next/static と /images を除外して全体に適用
-        source: '/((?!_next/static|images).*)',
-        headers: [
-          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' },
         ],
       },
     ];
