@@ -34,7 +34,19 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
         run: |
           npm ci
+          echo "=== Building with Next.js ==="
           npm run build
+          echo "=== Build completed, checking .next directory ==="
+          ls -la .next/
+          echo "=== Checking for standalone directory ==="
+          if [ -d ".next/standalone" ]; then
+            echo "Standalone directory exists"
+            ls -la .next/standalone/
+          else
+            echo "ERROR: Standalone directory not found!"
+            echo "next.config.js content:"
+            cat next.config.js
+          fi
 
       - name: Bundle Next.js standalone
         run: |
