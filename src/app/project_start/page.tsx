@@ -1,17 +1,18 @@
+// src/app/project_start/page.tsx
 'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { ApiService, type Project } from '@/services';
+import Header from '@/components/Header'; // ← 追加
 
 export default function ProjectStart() {
   const [open, setOpen] = useState(false);
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // TODO: 実際のログインユーザーIDを取得
-  const currentUserId = 1; // 山田太郎のID
+
+  const currentUserId = 1; // TODO: 実際のログインユーザーIDを取得
 
   // 自分のプロジェクト一覧を取得
   const loadMyProjects = async () => {
@@ -28,7 +29,6 @@ export default function ProjectStart() {
     }
   };
 
-  // ドロップダウンが開かれたときにデータを取得
   useEffect(() => {
     if (open && myProjects.length === 0) {
       loadMyProjects();
@@ -37,21 +37,10 @@ export default function ProjectStart() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-      {/* ヘッダー（ロゴ＋タイトル、左にユーザー名のダミー） */}
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-10">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <img src="/avatar.png" className="w-8 h-8 rounded-full" alt="user" />
-            <div>
-              <div className="font-medium text-gray-800">鈴木 理沙</div>
-              <div className="text-xs text-gray-500">自治体担当・政策推進</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" className="h-8" alt="METIST" />
-            <span className="text-2xl font-semibold tracking-wide text-sky-700">METIST</span>
-          </div>
-          <div className="w-20" />
+        {/* ▼ 共通ヘッダー（ロゴ + ユーザー情報） */}
+        <div className="mb-10">
+          <Header />
         </div>
 
         {/* 中央の3ボタン */}
@@ -84,33 +73,24 @@ export default function ProjectStart() {
           {open && (
             <div className="mt-2 rounded-xl border border-gray-200 bg-white overflow-hidden">
               {loading && (
-                <div className="px-5 py-4 text-center text-gray-500">
-                  プロジェクト一覧を読み込み中...
-                </div>
+                <div className="px-5 py-4 text-center text-gray-500">プロジェクト一覧を読み込み中...</div>
               )}
-              
-              {error && (
-                <div className="px-5 py-4 text-center text-red-600">
-                  {error}
-                </div>
-              )}
-              
+
+              {error && <div className="px-5 py-4 text-center text-red-600">{error}</div>}
+
               {!loading && !error && myProjects.length === 0 && (
-                <div className="px-5 py-4 text-center text-gray-500">
-                  参加しているプロジェクトがありません
-                </div>
+                <div className="px-5 py-4 text-center text-gray-500">参加しているプロジェクトがありません</div>
               )}
-              
+
               {!loading && !error && myProjects.length > 0 && (
                 <>
                   {myProjects.map((project, idx) => {
-                    // 日付をフォーマット
                     const updatedAt = new Date(project.updated_at).toLocaleDateString('ja-JP', {
                       year: 'numeric',
                       month: '2-digit',
-                      day: '2-digit'
-                    }).replace(/\//g, '/');
-                    
+                      day: '2-digit',
+                    });
+
                     return (
                       <Link
                         key={project.id}

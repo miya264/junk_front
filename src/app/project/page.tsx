@@ -30,7 +30,6 @@ const CARDS: CardDef[] = [
   { flow: 'concept',   title: 'コンセプト策定',     desc: '課題解決の基本方針と枠組みを設計する',       img: '/card-concept.png' },
   { flow: 'plan',      title: '施策案作成',         desc: '実行体制・数値目標・予算の素案を作る',       img: '/card-plan.png' },
   { flow: 'proposal',  title: '提案書作成',         desc: '説明・合意形成のための資料を準備する',       img: '/card-proposal.png' },
-  { flow: 'empty',     title: '（空き枠）',         desc: 'あとで中身を足します' },
 ];
 
 // ✅ 内側に分離：ここで useSearchParams を使う
